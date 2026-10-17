@@ -8,7 +8,7 @@ option java_package = "com.securityphone.contracts.v1";
 
 import "google/protobuf/timestamp.proto";
 
-service AuditBoundary {
+service AuditBoundaryService {
   rpc AppendAuditRecord(AppendAuditRecordRequest) returns (AppendAuditRecordResponse);
 }
 

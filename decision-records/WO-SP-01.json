@@ -5,7 +5,7 @@
   "test_gate_command": "./mvnw -pl service -am test",
   "baseline_ci_run": "https://github.com/jameshall-ops/security-phone-server/actions/runs/39077187670",
   "acceptance_test_command": "sh tests/boundary-check.test.sh && buf lint",
-  "test_run_hash": null,
+  "test_run_hash": "43076ea7a0f6a855a3dd7c9d665c75cdcc17c1aac333f33b69994064914be8b4",
   "reviewer": "Counsel and Program Owner (pending)",
   "human_gate_decision": "deferred",
   "open_items": [

@@ -6,7 +6,7 @@ package securityphone.contracts.v1;
 option java_multiple_files = true;
 option java_package = "com.securityphone.contracts.v1";
 
-service PolicyBoundary {
+service PolicyBoundaryService {
   rpc EvaluatePolicy(EvaluatePolicyRequest) returns (EvaluatePolicyResponse);
 }
 
