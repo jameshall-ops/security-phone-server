@@ -1,0 +1,17 @@
+{
+  "work_order": "WO-SP-01",
+  "branch": "wo-sp-01-agpl-boundary",
+  "upstream_commit": "ccc22f9ac4799b8e5a89587f8ff4e5266e3682ef",
+  "test_gate_command": "./mvnw -pl service -am test",
+  "baseline_ci_run": "https://github.com/jameshall-ops/security-phone-server/actions/runs/39077187670",
+  "pull_request_service_ci_run": "https://github.com/jameshall-ops/security-phone-server/actions/runs/39078015004",
+  "service_ci_log_hash": "d0fcd3ab7ba23ea51eb6a23f01d6fb70c9edd272a7503389e14654f87a16a4d0",
+  "boundary_ci_run": "https://github.com/jameshall-ops/security-phone-server/actions/runs/39078014994",
+  "boundary_ci_log_hash": "9b05452ed747183c0344f4ef4161ef41f7c897c29d10914df6faddbffe2cc03b",
+  "acceptance_test_command": "sh tests/boundary-check.test.sh && buf lint",
+  "test_run_hash": "43076ea7a0f6a855a3dd7c9d665c75cdcc17c1aac333f33b69994064914be8b4",
+  "reviewer": "Counsel (name retained with privileged opinion); Dr. James Hall",
+  "human_gate_decision": "approved",
+  "open_items": [],
+  "closed_at": "2026-10-17"
+}

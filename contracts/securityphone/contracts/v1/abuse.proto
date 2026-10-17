@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+syntax = "proto3";
+
+package securityphone.contracts.v1;
+
+option java_multiple_files = true;
+option java_package = "com.securityphone.contracts.v1";
+
+import "google/protobuf/timestamp.proto";
+
+service AbuseBoundaryService {
+  rpc SubmitAbuseSignal(SubmitAbuseSignalRequest) returns (SubmitAbuseSignalResponse);
+}
+
+message SubmitAbuseSignalRequest {
+  string signal_id = 1;
+  string signal_type = 2;
+  string reporter_id = 3;
+  string subject_id = 4;
+  string evidence_reference = 5;
+  google.protobuf.Timestamp observed_at = 6;
+}
+
+message SubmitAbuseSignalResponse {
+  string review_id = 1;
+  bool queued_for_human_review = 2;
+  bool automated_enforcement_performed = 3;
+}

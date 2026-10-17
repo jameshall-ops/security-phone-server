@@ -1,0 +1,25 @@
+name: Security Phone AGPL boundary
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  boundary-check:
+    name: boundary-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Enforce process boundary
+        run: sh tests/boundary-check.test.sh
+      - name: Install Buf
+        uses: bufbuild/buf-setup-action@a47c93e0b1648d5651a065437926377d060baa99 # v1.50.0
+        with:
+          version: 1.50.0
+      - name: Lint boundary contracts
+        run: buf lint

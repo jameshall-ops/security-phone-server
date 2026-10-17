@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+syntax = "proto3";
+
+package securityphone.contracts.v1;
+
+option java_multiple_files = true;
+option java_package = "com.securityphone.contracts.v1";
+
+import "google/protobuf/timestamp.proto";
+
+service IdentityBoundaryService {
+  rpc IntrospectOidcToken(IntrospectOidcTokenRequest) returns (IntrospectOidcTokenResponse);
+}
+
+message IntrospectOidcTokenRequest {
+  string bearer_token = 1;
+  string required_audience = 2;
+}
+
+message IntrospectOidcTokenResponse {
+  bool active = 1;
+  string subject = 2;
+  string issuer = 3;
+  repeated string audience = 4;
+  repeated string entitlements = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  string key_id = 7;
+}
