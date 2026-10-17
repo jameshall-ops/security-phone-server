@@ -15,10 +15,12 @@ find "$scan_root" \
 while IFS= read -r file; do
   case "$file" in
     *.java)
-      grep -nEi '^[[:space:]]*import[[:space:]]+(static[[:space:]]+)?[^;]*(\.(samos|stn|ham)(\.|;)|securityphone\.cell|security2\.)' "$file" >> "$violations" || true
+      grep -nEi '^[[:space:]]*import[[:space:]]+(static[[:space:]]+)?((samos|stn|ham)(\.|;)|[^;]*\.(samos|stn|ham)(\.|;)|(securityphone\.cell|security2)(\.|;)|[^;]*\.(securityphone\.cell|security2)(\.|;))' "$file" >> "$violations" || true
       ;;
     */pom.xml|pom.xml)
-      grep -nEi '<(groupId|artifactId)>[^<]*(^|[./_-])(samos|stn|ham)([./_-]|[[:space:]]*</)|<(groupId|artifactId)>[^<]*(securityphone[.-]cell|security2)[^<]*</' "$file" >> "$violations" || true
+      tr '\n\r\t' '   ' < "$file" \
+        | grep -Eio '<(groupId|artifactId)>[[:space:]]*(([^<]*[./_-])?(samos|stn|ham)([./_-][^<]*)?|([^<]*[./_-])?(securityphone[.-]cell|security2)([./_-][^<]*)?)[[:space:]]*</(groupId|artifactId)>' \
+        | sed "s#^#$file:#" >> "$violations" || true
       ;;
     *.proto)
       grep -nEi '^[[:space:]]*import[[:space:]]+"([^"[:space:]]*[./_-])?(samos|stn|ham)([./_-]|"|$)|^[[:space:]]*import[[:space:]]+"[^"]*(securityphone[./_-]cell|security2)[^"]*"' "$file" >> "$violations" || true

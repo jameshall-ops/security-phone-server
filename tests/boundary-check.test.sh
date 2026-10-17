@@ -18,11 +18,41 @@ if "$repo_root/scripts/boundary-check.sh" "$fixture_root" >/dev/null 2>&1; then
 fi
 
 rm "$fixture_root/service/src/main/java/example/BoundaryViolation.java"
+cat > "$fixture_root/service/src/main/java/example/TopLevelBoundaryViolation.java" <<'EOF'
+package example;
+import stn.Client;
+final class TopLevelBoundaryViolation {}
+EOF
+
+if "$repo_root/scripts/boundary-check.sh" "$fixture_root" >/dev/null 2>&1; then
+  echo "boundary-check accepted a forbidden top-level Java import" >&2
+  exit 1
+fi
+
+rm "$fixture_root/service/src/main/java/example/TopLevelBoundaryViolation.java"
 cat > "$fixture_root/pom.xml" <<'EOF'
 <project><dependencies><dependency><groupId>org.stn.private</groupId><artifactId>policy-client</artifactId></dependency></dependencies></project>
 EOF
 if "$repo_root/scripts/boundary-check.sh" "$fixture_root" >/dev/null 2>&1; then
   echo "boundary-check accepted a forbidden Maven dependency" >&2
+  exit 1
+fi
+rm "$fixture_root/pom.xml"
+
+cat > "$fixture_root/pom.xml" <<'EOF'
+<project>
+  <dependencies>
+    <dependency>
+      <groupId>
+        org.stn.private
+      </groupId>
+      <artifactId>policy-client</artifactId>
+    </dependency>
+  </dependencies>
+</project>
+EOF
+if "$repo_root/scripts/boundary-check.sh" "$fixture_root" >/dev/null 2>&1; then
+  echo "boundary-check accepted a forbidden multiline Maven dependency" >&2
   exit 1
 fi
 rm "$fixture_root/pom.xml"
