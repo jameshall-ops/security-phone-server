@@ -1,6 +1,6 @@
 # Security Phone AGPL process-boundary summary
 
-Status: **Counsel review pending**
+Status: **Approved**
 
 This file is an engineering summary for counsel and is not legal advice. The legal opinion and privileged analysis remain in counsel's records.
 
@@ -29,8 +29,8 @@ The fork does not import private SAM OS, STN, HAM or Security Phone Cell package
 
 ## Counsel decision
 
-Reviewer: **Pending**
+Reviewer: **Counsel (name retained with privileged opinion)**
 
-Decision: **Pending**
+Decision: **Approved**
 
-Date: **Pending**
+Date: **2026-10-17**
