@@ -1,0 +1,17 @@
+{
+  "work_order": "WO-SP-01",
+  "branch": "wo-sp-01-agpl-boundary",
+  "upstream_commit": "ccc22f9ac4799b8e5a89587f8ff4e5266e3682ef",
+  "test_gate_command": "./mvnw -pl service -am test",
+  "baseline_ci_run": "https://github.com/jameshall-ops/security-phone-server/actions/runs/39077187670",
+  "acceptance_test_command": "sh tests/boundary-check.test.sh && buf lint",
+  "test_run_hash": null,
+  "reviewer": "Counsel and Program Owner (pending)",
+  "human_gate_decision": "deferred",
+  "open_items": [
+    "Counsel must record sign-off on the AGPL process boundary.",
+    "Program Owner must confirm the registration, identity, policy, audit and abuse contract list is complete.",
+    "The pull-request CI run must record the passing boundary-check and contract-lint evidence hash."
+  ],
+  "closed_at": null
+}

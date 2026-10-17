@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+syntax = "proto3";
+
+package securityphone.contracts.v1;
+
+option java_multiple_files = true;
+option java_package = "com.securityphone.contracts.v1";
+
+import "google/protobuf/timestamp.proto";
+
+service RegistrationBoundary {
+  rpc BeginRegistration(BeginRegistrationRequest) returns (BeginRegistrationResponse);
+  rpc CompleteRegistration(CompleteRegistrationRequest) returns (CompleteRegistrationResponse);
+}
+
+message BeginRegistrationRequest {
+  string subject = 1;
+  string tier = 2;
+  string device_attestation = 3;
+}
+
+message BeginRegistrationResponse {
+  string registration_id = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message CompleteRegistrationRequest {
+  string registration_id = 1;
+  bytes identity_key = 2;
+  bytes signed_pre_key = 3;
+}
+
+message CompleteRegistrationResponse {
+  string account_id = 1;
+  google.protobuf.Timestamp registered_at = 2;
+}

@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+syntax = "proto3";
+
+package securityphone.contracts.v1;
+
+option java_multiple_files = true;
+option java_package = "com.securityphone.contracts.v1";
+
+service PolicyBoundary {
+  rpc EvaluatePolicy(EvaluatePolicyRequest) returns (EvaluatePolicyResponse);
+}
+
+message EvaluatePolicyRequest {
+  string principal = 1;
+  string action = 2;
+  string resource = 3;
+  map<string, string> context = 4;
+}
+
+message EvaluatePolicyResponse {
+  enum Decision {
+    DECISION_UNSPECIFIED = 0;
+    DECISION_ALLOW = 1;
+    DECISION_DENY = 2;
+  }
+
+  Decision decision = 1;
+  string policy_id = 2;
+  string policy_version = 3;
+  repeated string reasons = 4;
+  string decision_record_id = 5;
+}
