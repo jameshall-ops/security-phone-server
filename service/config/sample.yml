@@ -15,58 +15,6 @@ logging:
 tlsKeyStore:
   password: secret://tlsKeyStore.password
 
-stripe:
-  apiKey: secret://stripe.apiKey
-  idempotencyKeyGenerator: secret://stripe.idempotencyKeyGenerator
-  boostDescription: >
-    Example
-  supportedCurrenciesByPaymentMethod:
-    CARD:
-      - usd
-      - eur
-    SEPA_DEBIT:
-      - eur
-
-braintree:
-  merchantId: unset
-  publicKey: secret://braintree.publicKey
-  privateKey: secret://braintree.privateKey
-  environment: unset
-  graphqlUrl: unset
-  merchantAccounts:
-    # ISO 4217 currency code and its corresponding sub-merchant account
-    'xts': unset
-  supportedCurrenciesByPaymentMethod:
-    PAYPAL:
-      - usd
-  pubSubPublisher:
-    project: example-project
-    topic: example-topic
-    credentialConfiguration: |
-      {
-        "credential": "configuration"
-      }
-
-googlePlayBilling:
-  credentialsJson: |
-    {
-      "credential": "configuration"
-    }
-  packageName: package.name
-  applicationName: test
-  productIdToLevel: {}
-
-appleAppStore:
-  env: SANDBOX
-  bundleId: bundle.name
-  appAppleId: 12345
-  issuerId: abcdefg
-  keyId: abcdefg
-  encodedKey: secret://appleAppStore.encodedKey
-  subscriptionGroupId: example_subscriptionGroupId
-  productIdToLevel: {}
-  appleRootCerts: []
-
 appleDeviceCheck:
   production: false
   teamId: 0123456789
@@ -99,17 +47,6 @@ dynamoDbTables:
     tableName: Example_DeletedAccounts
   deletedAccountsLock:
     tableName: Example_DeletedAccountsLock
-  donationPermits:
-    tableName: Example_DonationPermits
-    expiration: P7D # Duration of time until rows expire
-  issuedReceipts:
-    tableName: Example_IssuedReceipts
-    generator: abcdefg12345678= # random base64-encoded binary sequence
-    maxReceiptsPerSubscriptionPayment:
-      STRIPE: 1
-      BRAINTREE: 1
-      GOOGLE_PLAY_BILLING: 1
-      APPLE_APP_STORE: 1
   ecKeys:
     tableName: Example_Keys
   ecSignedPreKeys:
@@ -121,9 +58,6 @@ dynamoDbTables:
   messages:
     tableName: Example_Messages
     expiration: P30D # Duration of time until rows expire
-  onetimeDonations:
-    tableName: Example_OnetimeDonations
-    expiration: P90D
   phoneNumberIdentifiers:
     tableName: Example_PhoneNumberIdentifiers
   profileAvatars:
@@ -148,8 +82,6 @@ dynamoDbTables:
   scheduledJobs:
     tableName: Example_ScheduledJobs
     expiration: P7D
-  subscriptions:
-    tableName: Example_Subscriptions
   verificationSessions:
     tableName: Example_VerificationSessions
 
@@ -339,77 +271,10 @@ remoteConfig:
   globalConfig: # keys and values that are given to clients on GET /v1/config
     EXAMPLE_KEY: VALUE
 
-paymentsService:
-  userAuthenticationTokenSharedSecret: secret://paymentsService.userAuthenticationTokenSharedSecret
-  paymentCurrencies:
-    # list of symbols for supported currencies
-    - MOB
-  externalClients:
-    fixerApiKey: secret://paymentsService.fixerApiKey
-    coinGeckoApiKey: secret://paymentsService.coinGeckoApiKey
-    coinGeckoCurrencyIds:
-      MOB: mobilecoin
-
-badges:
-  badges:
-    - id: TEST
-      category: other
-      sprites: # exactly 6
-        - sprite-1.png
-        - sprite-2.png
-        - sprite-3.png
-        - sprite-4.png
-        - sprite-5.png
-        - sprite-6.png
-      svg: example.svg
-      svgs:
-        - light: example-light.svg
-          dark: example-dark.svg
-  receiptLevels:
-    ONE_TIME_DONATION: TEST
-
-subscription: # configuration for Stripe subscriptions
-  badgeExpiration: P30D
-  badgeGracePeriod: P15D
-  backupExpiration: P30D
-  backupGracePeriod: P15D
-  backupFreeTierMediaDuration: P30D
-  levels:
-    500:
-      badge: EXAMPLE
-      prices:
-        # list of ISO 4217 currency codes and amounts for the given badge level
-        xts:
-          amount: '10'
-          processorIds:
-            STRIPE: price_example   # stripe Price ID
-            BRAINTREE: plan_example # braintree Plan ID
-
-loginPurchase:
-  playProductId: login_example
-  playOptionId: login_option_example
-  appStoreProductId: login_example
-
-oneTimeDonations:
-  sepaMaximumEuros: '10000'
-  boost:
-    expiration: P90D
-    badge: EXAMPLE
-  gift:
-    expiration: P90D
-    badge: EXAMPLE
-  currencies:
-    # ISO 4217 currency codes and amounts in those currencies
-    xts:
-      minimum: '0.5'
-      gift: '2'
-      boosts:
-        - '1'
-        - '2'
-        - '4'
-        - '8'
-        - '20'
-        - '40'
+abuseService:
+  # When omitted, all abuse-sensitive operations fail closed.
+  target: ${ABUSE_SERVICE_TARGET:-}
+  timeout: PT2S
 
 registrationService:
   host: registration.example.com

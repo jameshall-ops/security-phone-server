@@ -12,14 +12,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import org.signal.chat.common.Badge;
 import org.signal.chat.remoteconfiguration.Badges;
 import org.signal.chat.remoteconfiguration.Configuration;
 import org.signal.chat.remoteconfiguration.GetBadgesRequest;
@@ -30,7 +24,6 @@ import org.signal.chat.remoteconfiguration.SimpleRemoteConfigurationGrpc;
 import org.signal.chat.remoteconfiguration.TaggedBadges;
 import org.signal.chat.remoteconfiguration.TaggedConfiguration;
 import org.whispersystems.textsecuregcm.auth.grpc.AuthenticationUtil;
-import org.whispersystems.textsecuregcm.badges.BadgeTranslator;
 import org.whispersystems.textsecuregcm.storage.RemoteConfigsManager;
 
 public class RemoteConfigurationGrpcService extends SimpleRemoteConfigurationGrpc.RemoteConfigurationImplBase {
@@ -39,22 +32,13 @@ public class RemoteConfigurationGrpcService extends SimpleRemoteConfigurationGrp
       GetConfigurationResponse.newBuilder().setEtagMatched(true).build();
   private static final GetBadgesResponse BADGES_ETAG_MATCHED =
       GetBadgesResponse.newBuilder().setEtagMatched(true).build();
+  private static final Badges EMPTY_BADGES = Badges.getDefaultInstance();
+  private static final ByteString EMPTY_BADGES_ETAG = etag(EMPTY_BADGES);
 
   private final RemoteConfigsManager remoteConfigsManager;
-  private final BadgeTranslator badgeTranslator;
-  private final List<String> badgeIds;
 
-  // Badge information varies based on the provided Accept-Language header. Here we cache the etag for the resolved
-  // language, so if the caller provides a matching etag we don't have to build the full badge response.
-  private final ConcurrentHashMap<Locale, ByteString> localeToBadgesEtag = new ConcurrentHashMap<>();
-
-  public RemoteConfigurationGrpcService(
-      final RemoteConfigsManager remoteConfigsManager,
-      final BadgeTranslator badgeTranslator,
-      final List<String> badgeIds) {
+  public RemoteConfigurationGrpcService(final RemoteConfigsManager remoteConfigsManager) {
     this.remoteConfigsManager = remoteConfigsManager;
-    this.badgeTranslator = badgeTranslator;
-    this.badgeIds = badgeIds;
   }
 
   @Override
@@ -80,25 +64,15 @@ public class RemoteConfigurationGrpcService extends SimpleRemoteConfigurationGrp
 
   @Override
   public GetBadgesResponse getBadges(final GetBadgesRequest request) {
-    final List<Locale> acceptableLanguages = RequestAttributesUtil.getAvailableAcceptedLocales();
-    final Locale locale = badgeTranslator.resolveLocale(acceptableLanguages);
-
-    final ByteString cachedEtag = localeToBadgesEtag.get(locale);
-    if (cachedEtag != null && cachedEtag.equals(request.getEtag())) {
+    if (EMPTY_BADGES_ETAG.equals(request.getEtag())) {
       return BADGES_ETAG_MATCHED;
     }
 
-    final Map<String, Badge> badgesById = badgeIds.stream().collect(Collectors.toMap(
-        Function.identity(),
-        badgeId -> BadgeGrpcHelper.toGrpcBadge(badgeTranslator.translate(acceptableLanguages, badgeId))));
-    final Badges badges = Badges.newBuilder().putAllBadges(badgesById).build();
-
     final TaggedBadges taggedBadges = TaggedBadges.newBuilder()
-        .setBadges(badges)
-        .setEtag(etag(badges))
+        .setBadges(EMPTY_BADGES)
+        .setEtag(EMPTY_BADGES_ETAG)
         .build();
 
-    localeToBadgesEtag.computeIfAbsent(locale, _ -> taggedBadges.getEtag());
     return GetBadgesResponse.newBuilder().setTaggedBadges(taggedBadges).build();
   }
 

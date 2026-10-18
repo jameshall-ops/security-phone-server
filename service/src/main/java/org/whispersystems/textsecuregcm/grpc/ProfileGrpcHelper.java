@@ -29,7 +29,6 @@ import org.signal.libsignal.zkgroup.profiles.ProfileKeyCommitment;
 import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialRequest;
 import org.signal.libsignal.zkgroup.profiles.ServerZkProfileOperations;
 import org.whispersystems.textsecuregcm.auth.UnidentifiedAccessChecksum;
-import org.whispersystems.textsecuregcm.badges.ProfileBadgeConverter;
 import org.whispersystems.textsecuregcm.s3.PostPolicyGenerator;
 import org.whispersystems.textsecuregcm.storage.Account;
 import org.whispersystems.textsecuregcm.storage.DeviceCapability;
@@ -49,7 +48,6 @@ public class ProfileGrpcHelper {
 
   static Optional<LegacyProfileResult> getProfileV1(final Account account,
       final ProfilesManager profilesManager,
-      final ProfileBadgeConverter profileBadgeConverter,
       final byte[] requestVersion) {
     final Optional<VersionedProfileV1> maybeV1Profile =
         profilesManager.getV1(account.getAccountIdentifier(), HexFormat.of().formatHex(requestVersion));
@@ -59,7 +57,7 @@ public class ProfileGrpcHelper {
     final VersionedProfileV1 v1Profile = maybeV1Profile.get();
 
     final LegacyProfileResult.Builder builder = LegacyProfileResult.newBuilder()
-        .setAccountInfo(buildAccountInfo(profileBadgeConverter, account));
+        .setAccountInfo(buildAccountInfo(account));
 
     if (v1Profile.name() != null) {
       builder.setName(ByteString.copyFrom(v1Profile.name()));
@@ -88,7 +86,6 @@ public class ProfileGrpcHelper {
 
   static Optional<ProfileResult> getProfile(final Account account,
       final ProfilesManager profilesManager,
-      final ProfileBadgeConverter profileBadgeConverter,
       final byte[] requestVersion) {
 
     final Optional<VersionedProfile> maybeProfile = account.hasCapability(DeviceCapability.PROFILES_V2)
@@ -101,7 +98,7 @@ public class ProfileGrpcHelper {
 
     final ProfileResult.Builder builder = ProfileResult.newBuilder()
         .setData(ByteString.copyFrom(profile.data()))
-        .setAccountInfo(buildAccountInfo(profileBadgeConverter, account));
+        .setAccountInfo(buildAccountInfo(account));
 
     // If present, include the payment address if the version matches the latest version on Account or the latest
     // version on Account is empty
@@ -113,10 +110,8 @@ public class ProfileGrpcHelper {
     return Optional.of(builder.build());
   }
 
-  private static AccountInfo buildAccountInfo(final ProfileBadgeConverter profileBadgeConverter,
-      final Account account) {
+  private static AccountInfo buildAccountInfo(final Account account) {
     final AccountInfo.Builder accountInfoBuilder = AccountInfo.newBuilder()
-        .addAllBadgeIds(profileBadgeConverter.visibleBadgeIds(account.getBadges()))
         .setIdentityKey(ByteString.copyFrom(account.getAccountIdentityKey().serialize()))
         .setUnrestrictedUnidentifiedAccess(account.isUnrestrictedUnidentifiedAccess());
 

@@ -120,7 +120,7 @@ class ChallengeControllerTest {
 
   @ParameterizedTest
   @ValueSource(booleans = { true, false } )
-  void testHandleCaptcha(boolean hasThreshold)
+  void testHandleCaptchaIsGone(boolean hasThreshold)
       throws RateLimitExceededException, IOException, InvalidCaptchaArgumentException {
     final String captchaChallengeJson = """
         {
@@ -143,11 +143,8 @@ class ChallengeControllerTest {
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_UUID, AuthHelper.VALID_PASSWORD))
         .put(Entity.json(captchaChallengeJson));
 
-    assertEquals(200, response.getStatus());
-
-    verify(rateLimitChallengeManager).answerCaptchaChallenge(eq(AuthHelper.VALID_ACCOUNT),
-        eq("The value of the solved captcha token"), eq("127.0.0.1"), anyString(),
-        eq(hasThreshold ? Optional.of(0.5f) : Optional.empty()));
+    assertEquals(410, response.getStatus());
+    verifyNoInteractions(rateLimitChallengeManager);
   }
 
   @Test
@@ -168,7 +165,7 @@ class ChallengeControllerTest {
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_UUID, AuthHelper.VALID_PASSWORD))
         .put(Entity.json(captchaChallengeJson));
 
-    assertEquals(428, response.getStatus());
+    assertEquals(410, response.getStatus());
   }
 
   @Test
@@ -190,8 +187,7 @@ class ChallengeControllerTest {
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_UUID, AuthHelper.VALID_PASSWORD))
         .put(Entity.json(captchaChallengeJson));
 
-    assertEquals(429, response.getStatus());
-    assertEquals(String.valueOf(retryAfter.toSeconds()), response.getHeaderString("Retry-After"));
+    assertEquals(410, response.getStatus());
   }
 
   @Test

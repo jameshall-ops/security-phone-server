@@ -33,7 +33,6 @@ import org.signal.libsignal.zkgroup.VerificationFailedException;
 import org.signal.libsignal.zkgroup.avatars.AvatarUploadCredentialPresentation;
 import org.signal.libsignal.zkgroup.profiles.ServerZkProfileOperations;
 import org.whispersystems.textsecuregcm.auth.UnidentifiedAccessUtil;
-import org.whispersystems.textsecuregcm.badges.ProfileBadgeConverter;
 import org.whispersystems.textsecuregcm.controllers.RateLimitExceededException;
 import org.whispersystems.textsecuregcm.identity.ServiceIdentifier;
 import org.whispersystems.textsecuregcm.limits.RateLimiters;
@@ -50,7 +49,6 @@ public class ProfileAnonymousGrpcService extends SimpleProfileAnonymousGrpc.Prof
 
   private final AccountsManager accountsManager;
   private final ProfilesManager profilesManager;
-  private final ProfileBadgeConverter profileBadgeConverter;
   private final ServerZkProfileOperations zkProfileOperations;
   private final GenericServerSecretParams genericServerSecretParams;
   private final GroupSendTokenUtil groupSendTokenUtil;
@@ -64,7 +62,6 @@ public class ProfileAnonymousGrpcService extends SimpleProfileAnonymousGrpc.Prof
   public ProfileAnonymousGrpcService(
       final AccountsManager accountsManager,
       final ProfilesManager profilesManager,
-      final ProfileBadgeConverter profileBadgeConverter,
       final PostPolicyGenerator policyGenerator,
       final GenericServerSecretParams genericServerSecretParams,
       final ServerSecretParams serverSecretParams,
@@ -72,7 +69,6 @@ public class ProfileAnonymousGrpcService extends SimpleProfileAnonymousGrpc.Prof
       final Clock clock) {
     this(accountsManager,
         profilesManager,
-        profileBadgeConverter,
         policyGenerator,
         genericServerSecretParams,
         rateLimiters,
@@ -84,7 +80,6 @@ public class ProfileAnonymousGrpcService extends SimpleProfileAnonymousGrpc.Prof
   @VisibleForTesting
   ProfileAnonymousGrpcService(final AccountsManager accountsManager,
       final ProfilesManager profilesManager,
-      final ProfileBadgeConverter profileBadgeConverter,
       final PostPolicyGenerator policyGenerator,
       final GenericServerSecretParams genericServerSecretParams,
       final RateLimiters rateLimiters,
@@ -93,7 +88,6 @@ public class ProfileAnonymousGrpcService extends SimpleProfileAnonymousGrpc.Prof
       final GroupSendTokenUtil groupSendTokenUtil) {
     this.accountsManager = accountsManager;
     this.profilesManager = profilesManager;
-    this.profileBadgeConverter = profileBadgeConverter;
     this.policyGenerator = policyGenerator;
     this.genericServerSecretParams = genericServerSecretParams;
     this.rateLimiters = rateLimiters;
@@ -124,7 +118,7 @@ public class ProfileAnonymousGrpcService extends SimpleProfileAnonymousGrpc.Prof
     final byte[] version = request.getRequest().getVersion().toByteArray();
 
     final GetProfileAnonymousResponse response = targetAccount.flatMap(account -> ProfileGrpcHelper
-            .getProfile(account, profilesManager, profileBadgeConverter, version)
+            .getProfile(account, profilesManager, version)
 
             // If the etag matches, drop the result
             .map(profileResult -> request.getRequest().getEtag().equals(profileResult.getEtag())
@@ -133,7 +127,7 @@ public class ProfileAnonymousGrpcService extends SimpleProfileAnonymousGrpc.Prof
 
             // If we didn't find a v2 profile, try a v1 profile
             .or(() -> ProfileGrpcHelper
-                .getProfileV1(account, profilesManager, profileBadgeConverter, version)
+                .getProfileV1(account, profilesManager, version)
                 .map(v1Result -> GetProfileAnonymousResponse.newBuilder().setProfileV1(v1Result).build())))
         .orElseGet(() -> GetProfileAnonymousResponse.newBuilder().setNotFound(NotFound.getDefaultInstance()).build());
 

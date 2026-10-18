@@ -13,13 +13,10 @@ import java.util.Collections;
 import java.util.Map;
 import org.whispersystems.textsecuregcm.attachments.TusConfiguration;
 import org.whispersystems.textsecuregcm.configuration.ApnConfiguration;
-import org.whispersystems.textsecuregcm.configuration.AppleAppStoreConfiguration;
 import org.whispersystems.textsecuregcm.configuration.AppleDeviceCheckConfiguration;
 import org.whispersystems.textsecuregcm.configuration.AttachmentsConfiguration;
 import org.whispersystems.textsecuregcm.configuration.AwsCredentialsProviderFactory;
 import org.whispersystems.textsecuregcm.configuration.BackupConfiguration;
-import org.whispersystems.textsecuregcm.configuration.BadgesConfiguration;
-import org.whispersystems.textsecuregcm.configuration.BraintreeConfiguration;
 import org.whispersystems.textsecuregcm.configuration.BulkheadConfiguration;
 import org.whispersystems.textsecuregcm.configuration.CallQualitySurveyConfiguration;
 import org.whispersystems.textsecuregcm.configuration.Cdn3StorageManagerConfiguration;
@@ -38,20 +35,17 @@ import org.whispersystems.textsecuregcm.configuration.FaultTolerantRedisClusterF
 import org.whispersystems.textsecuregcm.configuration.FcmConfiguration;
 import org.whispersystems.textsecuregcm.configuration.FoundationDbMessagesConfiguration;
 import org.whispersystems.textsecuregcm.configuration.GcpAttachmentsConfiguration;
+import org.whispersystems.textsecuregcm.configuration.AbuseServiceConfiguration;
 import org.whispersystems.textsecuregcm.configuration.GenericZkConfig;
-import org.whispersystems.textsecuregcm.configuration.GooglePlayBillingConfiguration;
 import org.whispersystems.textsecuregcm.configuration.GrpcConfiguration;
 import org.whispersystems.textsecuregcm.configuration.HlrLookupConfiguration;
 import org.whispersystems.textsecuregcm.configuration.IdlePrimaryDeviceReminderConfiguration;
 import org.whispersystems.textsecuregcm.configuration.KeyTransparencyServiceConfiguration;
 import org.whispersystems.textsecuregcm.configuration.LinkDeviceSecretConfiguration;
-import org.whispersystems.textsecuregcm.configuration.LoginPurchaseConfiguration;
 import org.whispersystems.textsecuregcm.configuration.MessageByteLimitCardinalityEstimatorConfiguration;
 import org.whispersystems.textsecuregcm.configuration.MessageCacheConfiguration;
-import org.whispersystems.textsecuregcm.configuration.OneTimeDonationConfiguration;
 import org.whispersystems.textsecuregcm.configuration.OpenTelemetryConfiguration;
 import org.whispersystems.textsecuregcm.configuration.PagedSingleUseKEMPreKeyStoreConfiguration;
-import org.whispersystems.textsecuregcm.configuration.PaymentsServiceConfiguration;
 import org.whispersystems.textsecuregcm.configuration.RegistrationServiceClientFactory;
 import org.whispersystems.textsecuregcm.configuration.RemoteConfigConfiguration;
 import org.whispersystems.textsecuregcm.configuration.ReportMessageConfiguration;
@@ -60,9 +54,6 @@ import org.whispersystems.textsecuregcm.configuration.S3ObjectMonitorFactory;
 import org.whispersystems.textsecuregcm.configuration.SecureStorageServiceConfiguration;
 import org.whispersystems.textsecuregcm.configuration.SecureValueRecoveryConfiguration;
 import org.whispersystems.textsecuregcm.configuration.ShortCodeExpanderConfiguration;
-import org.whispersystems.textsecuregcm.configuration.SpamFilterConfiguration;
-import org.whispersystems.textsecuregcm.configuration.StripeConfiguration;
-import org.whispersystems.textsecuregcm.configuration.SubscriptionConfiguration;
 import org.whispersystems.textsecuregcm.configuration.TlsKeyStoreConfiguration;
 import org.whispersystems.textsecuregcm.configuration.TotpConfiguration;
 import org.whispersystems.textsecuregcm.configuration.TurnConfiguration;
@@ -84,26 +75,6 @@ public class WhisperServerConfiguration extends Configuration {
   @Valid
   @JsonProperty
   AwsCredentialsProviderFactory awsCredentialsProvider = new DefaultAwsCredentialsFactory();
-
-  @NotNull
-  @Valid
-  @JsonProperty
-  private StripeConfiguration stripe;
-
-  @NotNull
-  @Valid
-  @JsonProperty
-  private BraintreeConfiguration braintree;
-
-  @NotNull
-  @Valid
-  @JsonProperty
-  private GooglePlayBillingConfiguration googlePlayBilling;
-
-  @NotNull
-  @Valid
-  @JsonProperty
-  private AppleAppStoreConfiguration appleAppStore;
 
   @NotNull
   @Valid
@@ -228,11 +199,6 @@ public class WhisperServerConfiguration extends Configuration {
   @Valid
   @NotNull
   @JsonProperty
-  private PaymentsServiceConfiguration paymentsService;
-
-  @Valid
-  @NotNull
-  @JsonProperty
   private GenericZkConfig callingZkConfigPreV101;
 
   @Valid
@@ -261,26 +227,6 @@ public class WhisperServerConfiguration extends Configuration {
   private S3ObjectMonitorFactory dynamicConfig;
 
   @Valid
-  @NotNull
-  @JsonProperty
-  private BadgesConfiguration badges;
-
-  @Valid
-  @JsonProperty
-  @NotNull
-  private SubscriptionConfiguration subscription;
-
-  @Valid
-  @JsonProperty
-  @NotNull
-  private OneTimeDonationConfiguration oneTimeDonations;
-
-  @Valid
-  @JsonProperty
-  @NotNull
-  private LoginPurchaseConfiguration loginPurchase;
-
-  @Valid
   @JsonProperty
   @NotNull
   private PagedSingleUseKEMPreKeyStoreConfiguration pagedSingleUseKEMPreKeyStore;
@@ -291,8 +237,9 @@ public class WhisperServerConfiguration extends Configuration {
   private ReportMessageConfiguration reportMessage = new ReportMessageConfiguration();
 
   @Valid
+  @NotNull
   @JsonProperty
-  private SpamFilterConfiguration spamFilter;
+  private AbuseServiceConfiguration abuseService = new AbuseServiceConfiguration(null, null);
 
   @Valid
   @NotNull
@@ -405,22 +352,6 @@ public class WhisperServerConfiguration extends Configuration {
     return awsCredentialsProvider;
   }
 
-  public StripeConfiguration getStripe() {
-    return stripe;
-  }
-
-  public BraintreeConfiguration getBraintree() {
-    return braintree;
-  }
-
-  public GooglePlayBillingConfiguration getGooglePlayBilling() {
-    return googlePlayBilling;
-  }
-
-  public AppleAppStoreConfiguration getAppleAppStore() {
-    return appleAppStore;
-  }
-
   public AppleDeviceCheckConfiguration getAppleDeviceCheck() {
     return appleDeviceCheck;
   }
@@ -517,10 +448,6 @@ public class WhisperServerConfiguration extends Configuration {
     return unidentifiedDelivery;
   }
 
-  public PaymentsServiceConfiguration getPaymentsServiceConfiguration() {
-    return paymentsService;
-  }
-
   /// ZK secret limited to Chat Service
   public GenericZkConfig getChatZkConfig() {
     return chatZkConfig;
@@ -549,22 +476,6 @@ public class WhisperServerConfiguration extends Configuration {
     return dynamicConfig;
   }
 
-  public BadgesConfiguration getBadges() {
-    return badges;
-  }
-
-  public SubscriptionConfiguration getSubscription() {
-    return subscription;
-  }
-
-  public OneTimeDonationConfiguration getOneTimeDonations() {
-    return oneTimeDonations;
-  }
-
-  public LoginPurchaseConfiguration getLoginPurchase() {
-    return loginPurchase;
-  }
-
   public PagedSingleUseKEMPreKeyStoreConfiguration getPagedSingleUseKEMPreKeyStore() {
     return pagedSingleUseKEMPreKeyStore;
   }
@@ -573,8 +484,8 @@ public class WhisperServerConfiguration extends Configuration {
     return reportMessage;
   }
 
-  public SpamFilterConfiguration getSpamFilterConfiguration() {
-    return spamFilter;
+  public AbuseServiceConfiguration getAbuseServiceConfiguration() {
+    return abuseService;
   }
 
   public RegistrationServiceClientFactory getRegistrationServiceConfiguration() {

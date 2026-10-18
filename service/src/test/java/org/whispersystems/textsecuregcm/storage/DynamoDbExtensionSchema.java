@@ -114,14 +114,6 @@ public final class DynamoDbExtensionSchema {
             .attributeType(ScalarAttributeType.S).build()),
         List.of(), List.of()),
 
-    DONATION_PERMITS("donation_permits_test",
-        DonationPermits.KEY_SPEND_ID,
-        null,
-        List.of(AttributeDefinition.builder()
-            .attributeName(DonationPermits.KEY_SPEND_ID)
-            .attributeType(ScalarAttributeType.B)
-            .build()), List.of(), List.of()),
-
     NUMBERS("numbers_test",
         Accounts.ATTR_ACCOUNT_E164,
         null,
@@ -220,30 +212,12 @@ public final class DynamoDbExtensionSchema {
             .build()),
         List.of(), List.of()),
 
-    ISSUED_RECEIPTS("issued_receipts_test",
-        IssuedReceiptsManager.KEY_PROCESSOR_ITEM_ID,
-        null,
-        List.of(AttributeDefinition.builder()
-            .attributeName(IssuedReceiptsManager.KEY_PROCESSOR_ITEM_ID)
-            .attributeType(ScalarAttributeType.S)
-            .build()),
-        List.of(), List.of()),
-
     MESSAGES("messages_test",
         MessagesDynamoDb.KEY_PARTITION,
         MessagesDynamoDb.KEY_SORT,
         List.of(
             AttributeDefinition.builder().attributeName(MessagesDynamoDb.KEY_PARTITION).attributeType(ScalarAttributeType.B).build(),
             AttributeDefinition.builder().attributeName(MessagesDynamoDb.KEY_SORT).attributeType(ScalarAttributeType.B).build()),
-        List.of(), List.of()),
-
-    ONETIME_DONATIONS("onetime_donations_test",
-        OneTimeDonationsManager.KEY_PAYMENT_ID,
-        null,
-        List.of(AttributeDefinition.builder()
-            .attributeName(OneTimeDonationsManager.KEY_PAYMENT_ID)
-            .attributeType(ScalarAttributeType.S)
-            .build()),
         List.of(), List.of()),
 
     PROFILES("profiles_test",
@@ -350,34 +324,6 @@ public final class DynamoDbExtensionSchema {
                 .attributeType(ScalarAttributeType.B)
                 .build()),
         List.of(),
-        List.of()),
-
-    SUBSCRIPTIONS("subscriptions_test",
-        Subscriptions.KEY_USER,
-        null,
-        List.of(
-            AttributeDefinition.builder()
-                .attributeName(Subscriptions.KEY_USER)
-                .attributeType(ScalarAttributeType.B)
-                .build(),
-            AttributeDefinition.builder()
-                .attributeName(Subscriptions.KEY_PROCESSOR_ID_CUSTOMER_ID)
-                .attributeType(ScalarAttributeType.B)
-                .build()),
-        List.of(GlobalSecondaryIndex.builder()
-            .indexName(Subscriptions.INDEX_NAME)
-            .keySchema(KeySchemaElement.builder()
-                .attributeName(Subscriptions.KEY_PROCESSOR_ID_CUSTOMER_ID)
-                .keyType(KeyType.HASH)
-                .build())
-            .projection(Projection.builder()
-                .projectionType(ProjectionType.KEYS_ONLY)
-                .build())
-            .provisionedThroughput(ProvisionedThroughput.builder()
-                .readCapacityUnits(20L)
-                .writeCapacityUnits(20L)
-                .build())
-            .build()),
         List.of()),
 
     USED_LINK_DEVICE_TOKENS("used_link_device_tokens_test",
