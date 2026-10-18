@@ -56,4 +56,16 @@ public record SamOsCompleteRegistrationRequest(
   boolean hasMatchingMfaFields() {
     return (mfaMethod == null || mfaMethod.isBlank()) == (mfaAssertion == null || mfaAssertion.isBlank());
   }
+
+  @VisibleForTesting
+  @AssertTrue
+  boolean isExactlyOneMessageDeliveryChannel() {
+    if (deviceActivationRequest == null || accountAttributes == null) {
+      return false;
+    }
+    if (accountAttributes.getFetchesMessages()) {
+      return deviceActivationRequest.apnToken().isEmpty() && deviceActivationRequest.gcmToken().isEmpty();
+    }
+    return deviceActivationRequest.apnToken().isPresent() ^ deviceActivationRequest.gcmToken().isPresent();
+  }
 }
