@@ -59,4 +59,13 @@ class ForkPruningTest {
         .doesNotContain("stripe:")
         .doesNotContain("braintree:");
   }
+
+  @Test
+  void legacyAccountResponsesDoNotExposeBadges() throws IOException {
+    final String grpcAccounts = Files.readString(MAIN_JAVA.resolve("grpc/AccountsGrpcService.java"));
+    final String entitlements = Files.readString(MAIN_JAVA.resolve("entities/Entitlements.java"));
+
+    assertThat(grpcAccounts).doesNotContain("builder.addAllBadges");
+    assertThat(entitlements).contains("badges = List.of()");
+  }
 }

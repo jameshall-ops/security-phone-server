@@ -44,30 +44,21 @@ class AccountIdentityResponseBuilderTest {
   }
 
   @Test
-  void expiredBadgeEntitlement() {
+  void badgeEntitlementsAreNeverExposed() {
     final Account account = mock(Account.class);
     when(account.getBadges()).thenReturn(List.of(
         new AccountBadge("badge1", Instant.ofEpochSecond(10), false),
         new AccountBadge("badge2", Instant.ofEpochSecond(11), true)));
 
-    // all should be expired
     assertThat(new AccountIdentityResponseBuilder(account)
         .clock(TestClock.pinned(Instant.ofEpochSecond(11)))
         .build().entitlements().badges()).isEmpty();
-
-    // first badge should be expired
     assertThat(new AccountIdentityResponseBuilder(account).clock(TestClock.pinned(Instant.ofEpochSecond(10))).build()
         .entitlements()
-        .badges()
-        .stream().map(Entitlements.BadgeEntitlement::id).toList())
-        .containsExactly("badge2");
-
-    // no badges should be expired
+        .badges()).isEmpty();
     assertThat(new AccountIdentityResponseBuilder(account).clock(TestClock.pinned(Instant.ofEpochSecond(9))).build()
         .entitlements()
-        .badges()
-        .stream().map(Entitlements.BadgeEntitlement::id).toList())
-        .containsExactly("badge1", "badge2");
+        .badges()).isEmpty();
   }
 
   @ParameterizedTest
