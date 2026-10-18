@@ -898,23 +898,13 @@ class AccountsGrpcServiceTest extends SimpleBaseGrpcTest<AccountsGrpcService, Ac
     final GetEntitlementsResponse entitlements = authenticatedServiceStub()
         .getEntitlements(GetEntitlementsRequest.newBuilder().build());
 
+    assertThat(entitlements.getBadgesCount()).isEqualTo(0);
     if (expired) {
-      assertThat(entitlements.getBadgesCount()).isEqualTo(0);
       assertThat(entitlements.hasBackup()).isFalse();
     } else {
-      assertThat(entitlements.getBadges(0)).isEqualTo(toBadgeEntitlement(badge1));
-      assertThat(entitlements.getBadges(1)).isEqualTo(toBadgeEntitlement(badge2));
       assertThat(entitlements.getBackup().getLevel()).isEqualTo(100);
       assertThat(entitlements.getBackup().getExpirationEpochSeconds()).isEqualTo(expiration.getEpochSecond());
     }
-  }
-
-  private static GetEntitlementsResponse.BadgeEntitlement toBadgeEntitlement(AccountBadge badge) {
-    return GetEntitlementsResponse.BadgeEntitlement.newBuilder()
-        .setExpirationEpochSeconds(badge.expiration().getEpochSecond())
-        .setBadgeId(badge.id())
-        .setVisible(badge.visible())
-        .build();
   }
 
   @Test

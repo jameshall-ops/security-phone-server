@@ -49,8 +49,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.glassfish.jersey.server.ManagedAsync;
@@ -65,16 +63,11 @@ import org.signal.libsignal.zkgroup.profiles.ExpiringProfileKeyCredentialRespons
 import org.signal.libsignal.zkgroup.profiles.ProfileKeyCommitment;
 import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialRequest;
 import org.signal.libsignal.zkgroup.profiles.ServerZkProfileOperations;
-import org.whispersystems.textsecuregcm.asn.AsnInfoProvider;
 import org.whispersystems.textsecuregcm.auth.Anonymous;
 import org.whispersystems.textsecuregcm.auth.AuthenticatedDevice;
 import org.whispersystems.textsecuregcm.auth.GroupSendTokenHeader;
 import org.whispersystems.textsecuregcm.auth.OptionalAccess;
 import org.whispersystems.textsecuregcm.auth.UnidentifiedAccessChecksum;
-import org.whispersystems.textsecuregcm.badges.ProfileBadgeConverter;
-import org.whispersystems.textsecuregcm.configuration.BadgeConfiguration;
-import org.whispersystems.textsecuregcm.configuration.BadgesConfiguration;
-import org.whispersystems.textsecuregcm.configuration.dynamic.DynamicConfiguration;
 import org.whispersystems.textsecuregcm.entities.BaseProfileResponse;
 import org.whispersystems.textsecuregcm.entities.BatchIdentityCheckRequest;
 import org.whispersystems.textsecuregcm.entities.BatchIdentityCheckResponse;
@@ -82,7 +75,6 @@ import org.whispersystems.textsecuregcm.entities.CreateProfileRequest;
 import org.whispersystems.textsecuregcm.entities.ExpiringProfileKeyCredentialProfileResponse;
 import org.whispersystems.textsecuregcm.entities.ProfileAvatarUploadAttributes;
 import org.whispersystems.textsecuregcm.entities.VersionedProfileResponse;
-import org.whispersystems.textsecuregcm.filters.RemoteAddressFilter;
 import org.whispersystems.textsecuregcm.identity.AciServiceIdentifier;
 import org.whispersystems.textsecuregcm.identity.IdentityType;
 import org.whispersystems.textsecuregcm.identity.PniServiceIdentifier;
@@ -92,10 +84,8 @@ import org.whispersystems.textsecuregcm.limits.RateLimiters;
 import org.whispersystems.textsecuregcm.metrics.UserAgentTagUtil;
 import org.whispersystems.textsecuregcm.s3.PostPolicyGenerator;
 import org.whispersystems.textsecuregcm.storage.Account;
-import org.whispersystems.textsecuregcm.storage.AccountBadge;
 import org.whispersystems.textsecuregcm.storage.AccountsManager;
 import org.whispersystems.textsecuregcm.storage.DeviceCapability;
-import org.whispersystems.textsecuregcm.storage.DynamicConfigurationManager;
 import org.whispersystems.textsecuregcm.storage.ProfilesManager;
 import org.whispersystems.textsecuregcm.storage.VersionedProfileV1;
 import org.whispersystems.textsecuregcm.util.HeaderUtils;
@@ -111,10 +101,6 @@ public class ProfileController {
   private final RateLimiters rateLimiters;
   private final ProfilesManager profilesManager;
   private final AccountsManager accountsManager;
-  private final Supplier<AsnInfoProvider> asnInfoProviderSupplier;
-  private final DynamicConfigurationManager<DynamicConfiguration> dynamicConfigurationManager;
-  private final ProfileBadgeConverter profileBadgeConverter;
-  private final Map<String, BadgeConfiguration> badgeConfigurationMap;
 
   private final PostPolicyGenerator policyGenerator;
   private final ServerSecretParams serverSecretParams;
@@ -132,10 +118,6 @@ public class ProfileController {
       final RateLimiters rateLimiters,
       final AccountsManager accountsManager,
       final ProfilesManager profilesManager,
-      final Supplier<AsnInfoProvider> asnInfoProviderSupplier,
-      final DynamicConfigurationManager<DynamicConfiguration> dynamicConfigurationManager,
-      final ProfileBadgeConverter profileBadgeConverter,
-      final BadgesConfiguration badgesConfiguration,
       final PostPolicyGenerator policyGenerator,
       final ServerSecretParams serverSecretParams,
       final ServerZkProfileOperations zkProfileOperations,
@@ -144,11 +126,6 @@ public class ProfileController {
     this.rateLimiters = rateLimiters;
     this.accountsManager = accountsManager;
     this.profilesManager = profilesManager;
-    this.asnInfoProviderSupplier = asnInfoProviderSupplier;
-    this.dynamicConfigurationManager = dynamicConfigurationManager;
-    this.profileBadgeConverter = profileBadgeConverter;
-    this.badgeConfigurationMap = badgesConfiguration.getBadges().stream()
-        .collect(Collectors.toMap(BadgeConfiguration::getId, Function.identity()));
     this.serverSecretParams = serverSecretParams;
     this.zkProfileOperations = zkProfileOperations;
     this.policyGenerator = policyGenerator;
@@ -184,11 +161,8 @@ public class ProfileController {
     final Optional<VersionedProfileV1> currentProfile =
         profilesManager.getV1(auth.accountIdentifier(), request.version());
 
-    final String remoteAddress = (String) requestContext.getProperty(RemoteAddressFilter.REMOTE_ADDRESS_ATTRIBUTE_NAME);
-
     if (request.paymentAddress() != null &&
-        request.paymentAddress().length != 0 &&
-        ProfileHelper.isPaymentAddressUpdateForbidden(account, Optional.empty(), currentProfile, remoteAddress, asnInfoProviderSupplier.get(), dynamicConfigurationManager)) {
+        request.paymentAddress().length != 0) {
 
       return Response.status(Response.Status.FORBIDDEN).build();
     }
@@ -213,11 +187,6 @@ public class ProfileController {
 
     accountsManager.update(account.getAccountIdentifier(), a -> {
 
-      final List<AccountBadge> updatedBadges = request.badges()
-          .map(badges -> ProfileHelper.mergeBadgeIdsWithExistingAccountBadges(clock, badgeConfigurationMap, badges, a.getBadges()))
-          .orElseGet(a::getBadges);
-
-      a.setBadges(clock, updatedBadges);
       a.setCurrentProfileVersion(HexFormat.of().parseHex(request.version()));
     });
 
@@ -513,10 +482,7 @@ public class ProfileController {
         account.getUnidentifiedAccessKey().map(UnidentifiedAccessChecksum::generateFor).orElse(null),
         account.isUnrestrictedUnidentifiedAccess(),
         getAccountCapabilities(account),
-        profileBadgeConverter.convert(
-            HeaderUtils.getAcceptableLanguagesForRequest(containerRequestContext),
-            account.getBadges(),
-            isSelf),
+        Collections.emptyList(),
         new AciServiceIdentifier(account.getAccountIdentifier()));
   }
 

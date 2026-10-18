@@ -9,7 +9,6 @@ import org.signal.chat.challenge.RequestPushChallengeResponse;
 import org.signal.chat.challenge.SimpleChallengeGrpc;
 import org.signal.chat.errors.FailedPrecondition;
 import org.whispersystems.textsecuregcm.auth.grpc.AuthenticationUtil;
-import org.whispersystems.textsecuregcm.captcha.InvalidCaptchaArgumentException;
 import org.whispersystems.textsecuregcm.controllers.RateLimitExceededException;
 import org.whispersystems.textsecuregcm.limits.RateLimitChallengeManager;
 import org.whispersystems.textsecuregcm.push.NotPushRegisteredException;
@@ -47,18 +46,7 @@ public class ChallengeGrpcService extends SimpleChallengeGrpc.ChallengeImplBase 
 
         yield rateLimitChallengeManager.answerPushChallenge(account, request.getPush().getChallenge());
       }
-      case CAPTCHA -> {
-        try {
-          yield rateLimitChallengeManager.answerCaptchaChallenge(
-              account,
-              request.getCaptcha().getCaptcha(),
-              RequestAttributesUtil.getRemoteAddress().getHostAddress(),
-              RequestAttributesUtil.getUserAgent().orElse(null),
-              constraints.captchaScoreThreshold());
-        } catch (final InvalidCaptchaArgumentException e) {
-          throw GrpcExceptions.invalidArguments(e.getMessage());
-        }
-      }
+      case CAPTCHA -> throw GrpcExceptions.invalidArguments("captcha challenges are not available");
       case REQUEST_NOT_SET -> throw GrpcExceptions.fieldViolation("request", "Must set request type");
     };
 

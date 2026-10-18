@@ -62,9 +62,6 @@ import org.apache.commons.lang3.Strings;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.whispersystems.textsecuregcm.captcha.AssessmentResult;
-import org.whispersystems.textsecuregcm.captcha.InvalidCaptchaArgumentException;
-import org.whispersystems.textsecuregcm.captcha.RegistrationCaptchaManager;
 import org.whispersystems.textsecuregcm.configuration.dynamic.DynamicConfiguration;
 import org.whispersystems.textsecuregcm.entities.CreateVerificationSessionRequest;
 import org.whispersystems.textsecuregcm.entities.RegistrationServiceSession;
@@ -75,7 +72,6 @@ import org.whispersystems.textsecuregcm.entities.VerificationSessionResponse;
 import org.whispersystems.textsecuregcm.filters.RemoteAddressFilter;
 import org.whispersystems.textsecuregcm.limits.RateLimiters;
 import org.whispersystems.textsecuregcm.mappers.RegistrationServiceSenderExceptionMapper;
-import org.whispersystems.textsecuregcm.metrics.CaptchaMetrics;
 import org.whispersystems.textsecuregcm.metrics.DevicePlatformUtil;
 import org.whispersystems.textsecuregcm.metrics.UserAgentTagUtil;
 import org.whispersystems.textsecuregcm.push.NotPushRegisteredException;
@@ -116,10 +112,8 @@ public class VerificationController {
   private static final String PUSH_CHALLENGE_COUNTER_NAME = name(VerificationController.class, "pushChallenge");
   private static final String CHALLENGE_PRESENT_TAG_NAME = "present";
   private static final String CHALLENGE_MATCH_TAG_NAME = "matches";
-  private static final String CAPTCHA_ATTEMPT_COUNTER_NAME = name(VerificationController.class, "captcha");
   private static final String COUNTRY_CODE_TAG_NAME = "countryCode";
   private static final String REGION_CODE_TAG_NAME = "regionCode";
-  private static final String SCORE_TAG_NAME = "score";
   private static final String CODE_REQUESTED_COUNTER_NAME = name(VerificationController.class, "codeRequested");
   private static final String VERIFICATION_TRANSPORT_TAG_NAME = "transport";
   private static final String VERIFIED_COUNTER_NAME = name(VerificationController.class, "verified");
@@ -132,7 +126,6 @@ public class VerificationController {
   private final RegistrationServiceClient registrationServiceClient;
   private final VerificationSessionManager verificationSessionManager;
   private final PushNotificationManager pushNotificationManager;
-  private final RegistrationCaptchaManager registrationCaptchaManager;
   private final PhoneNumberRecoveryPasswordsManager phoneNumberRecoveryPasswordsManager;
   private final PhoneNumberIdentifiers phoneNumberIdentifiers;
   private final RateLimiters rateLimiters;
@@ -145,7 +138,6 @@ public class VerificationController {
   public VerificationController(final RegistrationServiceClient registrationServiceClient,
       final VerificationSessionManager verificationSessionManager,
       final PushNotificationManager pushNotificationManager,
-      final RegistrationCaptchaManager registrationCaptchaManager,
       final PhoneNumberRecoveryPasswordsManager phoneNumberRecoveryPasswordsManager,
       final PhoneNumberIdentifiers phoneNumberIdentifiers,
       final RateLimiters rateLimiters,
@@ -157,7 +149,6 @@ public class VerificationController {
     this.registrationServiceClient = registrationServiceClient;
     this.verificationSessionManager = verificationSessionManager;
     this.pushNotificationManager = pushNotificationManager;
-    this.registrationCaptchaManager = registrationCaptchaManager;
     this.phoneNumberRecoveryPasswordsManager = phoneNumberRecoveryPasswordsManager;
     this.phoneNumberIdentifiers = phoneNumberIdentifiers;
     this.rateLimiters = rateLimiters;
@@ -227,16 +218,12 @@ public class VerificationController {
         Collections.emptyList(),
         null,
         null,
-        false,
+        pushTokenAndType.first() == null,
         clock.millis(),
         clock.millis(),
         registrationServiceSession.expiration());
 
     verificationSession = handlePushToken(pushTokenAndType, verificationSession);
-    // unconditionally request a captcha -- it will either be the only requested information, or a fallback
-    // if a push challenge sent in `handlePushToken` doesn't arrive in time
-    verificationSession.requestedInformation().add(VerificationSession.Information.CAPTCHA);
-
     verificationSessionManager.insert(verificationSession);
 
     return buildResponse(registrationServiceSession, verificationSession);
@@ -269,7 +256,9 @@ public class VerificationController {
       @Context final ContainerRequestContext requestContext,
       @NotNull @Valid final UpdateVerificationSessionRequest updateVerificationSessionRequest) {
 
-    final String sourceHost = (String) requestContext.getProperty(RemoteAddressFilter.REMOTE_ADDRESS_ATTRIBUTE_NAME);
+    if (updateVerificationSessionRequest.captcha() != null) {
+      throw new WebApplicationException("Captcha verification is no longer available", Response.Status.GONE);
+    }
 
     final Pair<String, PushNotification.TokenType> pushTokenAndType = validateAndExtractPushToken(
         updateVerificationSessionRequest);
@@ -293,8 +282,6 @@ public class VerificationController {
       verificationSession = handlePushChallenge(updateVerificationSessionRequest, registrationServiceSession,
           verificationSession);
 
-      verificationSession = handleCaptcha(sourceHost, updateVerificationSessionRequest, registrationServiceSession,
-          verificationSession, userAgent, verificationCheck.scoreThreshold());
     } catch (final RateLimitExceededException e) {
 
       final Response response = buildResponseForRateLimitExceeded(verificationSession, registrationServiceSession,
@@ -401,8 +388,6 @@ public class VerificationController {
 
       final List<VerificationSession.Information> requestedInformation = new ArrayList<>(
           verificationSession.requestedInformation());
-      // a push challenge satisfies a requested captcha
-      requestedInformation.remove(VerificationSession.Information.CAPTCHA);
       final boolean allowedToRequestCode = (verificationSession.allowedToRequestCode()
           || requestedInformation.remove(VerificationSession.Information.PUSH_CHALLENGE))
           && requestedInformation.isEmpty();
@@ -422,87 +407,6 @@ public class VerificationController {
     } else if (pushChallengePresent) {
       throw new ForbiddenException();
     }
-    return verificationSession;
-  }
-
-  /**
-   * If a captcha value is present, it is assessed. If it is valid, then {@link VerificationSession.Information#CAPTCHA}
-   * is removed from requested information, added to submitted information, and
-   * {@link VerificationSession#allowedToRequestCode()} is re-evaluated.
-   *
-   * @throws ForbiddenException         if assessment is not valid.
-   * @throws RateLimitExceededException if too many captchas have been submitted
-   */
-  private VerificationSession handleCaptcha(
-      final String sourceHost,
-      final UpdateVerificationSessionRequest updateVerificationSessionRequest,
-      final RegistrationServiceSession registrationServiceSession,
-      VerificationSession verificationSession,
-      final String userAgent,
-      final Optional<Float> captchaScoreThreshold) throws RateLimitExceededException {
-
-    if (updateVerificationSessionRequest.captcha() == null) {
-      return verificationSession;
-    }
-
-    rateLimiters.getVerificationCaptchaLimiter().validate(registrationServiceSession.encodedSessionId());
-
-    final AssessmentResult assessmentResult;
-    try {
-
-      assessmentResult = registrationCaptchaManager.assessCaptcha(
-              Optional.empty(),
-              Optional.of(updateVerificationSessionRequest.captcha()), sourceHost, userAgent)
-          .orElseThrow(() -> new ServerErrorException(Response.Status.INTERNAL_SERVER_ERROR));
-
-      Metrics.counter(CAPTCHA_ATTEMPT_COUNTER_NAME, Tags.of(
-              Tag.of(SUCCESS_TAG_NAME, String.valueOf(assessmentResult.isValid(captchaScoreThreshold))),
-              UserAgentTagUtil.getPlatformTag(userAgent),
-              Tag.of(COUNTRY_CODE_TAG_NAME, Util.getCountryCode(registrationServiceSession.number())),
-              Tag.of(REGION_CODE_TAG_NAME, Util.getRegion(registrationServiceSession.number())),
-              Tag.of(SCORE_TAG_NAME, assessmentResult.getScoreString())))
-          .increment();
-
-      CaptchaMetrics.measureCaptchaOutcome(assessmentResult.getNormalizedIntScore(),
-          assessmentResult.isValid(captchaScoreThreshold),
-          Util.getRegion(registrationServiceSession.number()),
-          "verification");
-
-    } catch (final IOException e) {
-      logger.error("error assessing captcha during registration verification", e);
-      throw new ServerErrorException(Response.Status.SERVICE_UNAVAILABLE, e);
-    } catch (InvalidCaptchaArgumentException e) {
-      throw new BadRequestException(e);
-    }
-
-    if (assessmentResult.isValid(captchaScoreThreshold)) {
-      final List<VerificationSession.Information> submittedInformation = new ArrayList<>(
-          verificationSession.submittedInformation());
-      submittedInformation.add(VerificationSession.Information.CAPTCHA);
-
-      final List<VerificationSession.Information> requestedInformation = new ArrayList<>(
-          verificationSession.requestedInformation());
-      // a captcha satisfies a push challenge, in case of push deliverability issues
-      requestedInformation.remove(VerificationSession.Information.PUSH_CHALLENGE);
-      final boolean allowedToRequestCode = (verificationSession.allowedToRequestCode()
-          || requestedInformation.remove(VerificationSession.Information.CAPTCHA))
-          && requestedInformation.isEmpty();
-
-      verificationSession = new VerificationSession(verificationSession.sessionId(),
-          verificationSession.pushChallenge(),
-          verificationSession.carrierData(),
-          requestedInformation,
-          submittedInformation,
-          verificationSession.smsSenderOverride(),
-          verificationSession.voiceSenderOverride(),
-          allowedToRequestCode,
-          verificationSession.createdTimestamp(),
-          clock.millis(),
-          verificationSession.remoteExpirationSeconds());
-    } else {
-      throw new ForbiddenException();
-    }
-
     return verificationSession;
   }
 

@@ -39,6 +39,7 @@
 
   <modules>
     <module>api-doc</module>
+    <module>contracts</module>
     <module>integration-tests</module>
     <module>service</module>
     <module>websocket-resources</module>
@@ -46,7 +47,6 @@
 
   <properties>
     <aws.sdk2.version>2.55.14</aws.sdk2.version>
-    <braintree.version>3.54.0</braintree.version>
     <commons-csv.version>1.14.1</commons-csv.version>
     <commons-io.version>2.22.0</commons-io.version>
     <dropwizard.version>5.0.2</dropwizard.version>
@@ -89,7 +89,6 @@
     <semver4j.version>3.1.0</semver4j.version>
     <simple-grpc.version>0.2.1</simple-grpc.version>
     <slf4j.version>2.0.20</slf4j.version>
-    <stripe.version>33.4.2</stripe.version>
     <swagger.version>2.2.55</swagger.version>
     <testcontainers.version>2.0.5</testcontainers.version>
     <webauthn4j.version>0.31.11.RELEASE</webauthn4j.version>
@@ -285,16 +284,6 @@
         <version>1.4.0</version>
       </dependency>
       <dependency>
-        <groupId>com.stripe</groupId>
-        <artifactId>stripe-java</artifactId>
-        <version>${stripe.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.braintreepayments.gateway</groupId>
-        <artifactId>braintree-java</artifactId>
-        <version>${braintree.version}</version>
-      </dependency>
-      <dependency>
         <groupId>com.google.code.findbugs</groupId>
         <artifactId>jsr305</artifactId>
         <version>${jsr305.version}</version>
@@ -410,27 +399,6 @@
   </dependencies>
 
   <profiles>
-    <profile>
-      <id>include-spam-filter</id>
-      <activation>
-        <file>
-          <exists>spam-filter/pom.xml</exists>
-        </file>
-      </activation>
-      <modules>
-        <module>spam-filter</module>
-      </modules>
-    </profile>
-
-    <profile>
-      <id>exclude-spam-filter</id>
-      <activation>
-        <file>
-          <missing>spam-filter/pom.xml</missing>
-        </file>
-      </activation>
-    </profile>
-
     <profile>
       <!-- Starts pulling Testcontainers images in the background, reducing test blocks. This is primarily useful in CI,
        where images are less likely to be cached.-->

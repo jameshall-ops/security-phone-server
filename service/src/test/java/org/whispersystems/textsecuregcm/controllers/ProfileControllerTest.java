@@ -57,6 +57,7 @@ import org.assertj.core.api.Condition;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.test.grizzly.GrizzlyWebTestContainerFactory;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -79,16 +80,9 @@ import org.signal.libsignal.zkgroup.profiles.ProfileKeyCommitment;
 import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialRequest;
 import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialRequestContext;
 import org.signal.libsignal.zkgroup.profiles.ServerZkProfileOperations;
-import org.whispersystems.textsecuregcm.asn.AsnInfoProvider;
 import org.whispersystems.textsecuregcm.auth.AuthenticatedDevice;
 import org.whispersystems.textsecuregcm.auth.UnidentifiedAccessUtil;
-import org.whispersystems.textsecuregcm.badges.ProfileBadgeConverter;
-import org.whispersystems.textsecuregcm.configuration.BadgeConfiguration;
-import org.whispersystems.textsecuregcm.configuration.BadgesConfiguration;
 import org.whispersystems.textsecuregcm.configuration.dynamic.DynamicConfiguration;
-import org.whispersystems.textsecuregcm.configuration.dynamic.DynamicPaymentsConfiguration;
-import org.whispersystems.textsecuregcm.entities.Badge;
-import org.whispersystems.textsecuregcm.entities.BadgeSvg;
 import org.whispersystems.textsecuregcm.entities.BaseProfileResponse;
 import org.whispersystems.textsecuregcm.entities.BatchIdentityCheckRequest;
 import org.whispersystems.textsecuregcm.entities.BatchIdentityCheckResponse;
@@ -110,7 +104,6 @@ import org.whispersystems.textsecuregcm.storage.DeviceCapability;
 import org.whispersystems.textsecuregcm.storage.DynamicConfigurationManager;
 import org.whispersystems.textsecuregcm.storage.ProfilesManager;
 import org.whispersystems.textsecuregcm.storage.VersionedProfileV1;
-import org.whispersystems.textsecuregcm.purchases.ReceiptLevel;
 import org.whispersystems.textsecuregcm.tests.util.AccountsHelper;
 import org.whispersystems.textsecuregcm.tests.util.AuthHelper;
 import org.whispersystems.textsecuregcm.tests.util.ProfileTestHelper;
@@ -142,11 +135,6 @@ class ProfileControllerTest {
   private static final IdentityKey ACCOUNT_TWO_PHONE_NUMBER_IDENTITY_KEY = new IdentityKey(ECKeyPair.generate().getPublicKey());
   private static final String BASE_64_URL_USERNAME_HASH = "9p6Tip7BFefFOJzv4kv4GyXEYsBVfk_WbjNejdlOvQE";
   private static final byte[] USERNAME_HASH = Base64.getUrlDecoder().decode(BASE_64_URL_USERNAME_HASH);
-  @SuppressWarnings("unchecked")
-  private static final DynamicConfigurationManager<DynamicConfiguration> dynamicConfigurationManager = mock(
-      DynamicConfigurationManager.class);
-
-  private DynamicPaymentsConfiguration dynamicPaymentsConfiguration;
   private Account profileAccount;
   private Account capabilitiesAccount;
 
@@ -162,34 +150,6 @@ class ProfileControllerTest {
           rateLimiters,
           accountsManager,
           profilesManager,
-          () -> AsnInfoProvider.EMPTY,
-          dynamicConfigurationManager,
-          new ProfileBadgeConverter() {
-            @Override
-            public List<String> visibleBadgeIds(final List<AccountBadge> badges) {
-              return List.of("TEST");
-            }
-
-            @Override
-            public List<Badge> convert(final List<Locale> acceptableLanguages, final List<AccountBadge> accountBadges,
-                final boolean isSelf) {
-              return List.of(new Badge("TEST", "other", "Test Badge",
-                  "This badge is in unit tests.",
-                  List.of("l", "m", "h", "x", "xx", "xxx"),
-                  "SVG", List.of(new BadgeSvg("sl", "sd"),
-                  new BadgeSvg("ml", "md"),
-                  new BadgeSvg("ll", "ld"))));
-            }
-          },
-          new BadgesConfiguration(List.of(
-              new BadgeConfiguration("TEST", "other", List.of("l", "m", "h", "x", "xx", "xxx"), "SVG", List.of(new BadgeSvg("sl", "sd"), new BadgeSvg("ml", "md"), new BadgeSvg("ll", "ld"))),
-              new BadgeConfiguration("TEST1", "testing", List.of("l", "m", "h", "x", "xx", "xxx"), "SVG", List.of(new BadgeSvg("sl", "sd"), new BadgeSvg("ml", "md"), new BadgeSvg("ll", "ld"))),
-              new BadgeConfiguration("TEST2", "testing", List.of("l", "m", "h", "x", "xx", "xxx"), "SVG", List.of(new BadgeSvg("sl", "sd"), new BadgeSvg("ml", "md"), new BadgeSvg("ll", "ld"))),
-              new BadgeConfiguration("TEST3", "testing", List.of("l", "m", "h", "x", "xx", "xxx"), "SVG", List.of(new BadgeSvg("sl", "sd"), new BadgeSvg("ml", "md"), new BadgeSvg("ll", "ld")))
-          ), Map.of(
-              ReceiptLevel.ONE_TIME_DONATION, "TEST1",
-              ReceiptLevel.SUBSCRIPTION_MEDIUM, "TEST2",
-              ReceiptLevel.SUBSCRIPTION_HIGH, "TEST3")),
           postPolicyGenerator,
           serverSecretParams,
           zkProfileOperations,
@@ -201,13 +161,6 @@ class ProfileControllerTest {
     reset(profilesManager, zkProfileOperations, accountsManager, rateLimiter);
     clock.pin(Instant.ofEpochSecond(42));
     AccountsHelper.setupMockUpdate(accountsManager);
-
-    dynamicPaymentsConfiguration = mock(DynamicPaymentsConfiguration.class);
-    final DynamicConfiguration dynamicConfiguration = mock(DynamicConfiguration.class);
-
-    when(dynamicConfigurationManager.getConfiguration()).thenReturn(dynamicConfiguration);
-    when(dynamicConfiguration.getPaymentsConfiguration()).thenReturn(dynamicPaymentsConfiguration);
-    when(dynamicPaymentsConfiguration.disallowedPrefixes()).thenReturn(Collections.emptyList());
 
     when(rateLimiters.getProfileLimiter()).thenReturn(rateLimiter);
     when(rateLimiters.getUsernameLookupLimiter()).thenReturn(usernameRateLimiter);
@@ -272,8 +225,7 @@ class ProfileControllerTest {
                               .get(BaseProfileResponse.class);
 
     assertThat(profile.getIdentityKey()).isEqualTo(ACCOUNT_TWO_IDENTITY_KEY);
-    assertThat(profile.getBadges()).hasSize(1).element(0).has(new Condition<>(
-        badge -> "Test Badge".equals(badge.getName()), "has badge with expected name"));
+    assertThat(profile.getBadges()).isEmpty();
 
     verify(rateLimiter, times(1)).validate(AuthHelper.VALID_UUID);
   }
@@ -302,8 +254,7 @@ class ProfileControllerTest {
         .get(BaseProfileResponse.class);
 
     assertThat(profile.getIdentityKey()).isEqualTo(ACCOUNT_TWO_IDENTITY_KEY);
-    assertThat(profile.getBadges()).hasSize(1).element(0).has(new Condition<>(
-        badge -> "Test Badge".equals(badge.getName()), "has badge with expected name"));
+    assertThat(profile.getBadges()).isEmpty();
 
     verify(rateLimiter, never()).validate(AuthHelper.VALID_UUID);
   }
@@ -358,8 +309,7 @@ class ProfileControllerTest {
     if (expectedResponse == 200) {
       final BaseProfileResponse profile = response.readEntity(BaseProfileResponse.class);
       assertThat(profile.getIdentityKey()).isEqualTo(ACCOUNT_TWO_IDENTITY_KEY);
-      assertThat(profile.getBadges()).hasSize(1).element(0).has(new Condition<>(
-              badge -> "Test Badge".equals(badge.getName()), "has badge with expected name"));
+      assertThat(profile.getBadges()).isEmpty();
     }
 
     verifyNoMoreInteractions(rateLimiter);
@@ -768,7 +718,7 @@ class ProfileControllerTest {
   }
 
   @Test
-  void testSetProfilePaymentAddress() throws InvalidInputException {
+  void testSetProfilePaymentAddressIsUnavailable() throws InvalidInputException {
     final ProfileKeyCommitment commitment = new ProfileKey(new byte[32]).getCommitment(new ServiceId.Aci(AuthHelper.VALID_UUID));
 
     clearInvocations(AuthHelper.VALID_ACCOUNT_TWO);
@@ -783,124 +733,13 @@ class ProfileControllerTest {
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_UUID_TWO, AuthHelper.VALID_PASSWORD_TWO))
         .put(Entity.entity(
             new CreateProfileRequest(commitment, version, name,
-                null, null, paymentAddress, false, false,
-                Optional.of(List.of()), null), MediaType.APPLICATION_JSON_TYPE))) {
-
-      assertThat(response.getStatus()).isEqualTo(200);
-      assertThat(response.hasEntity()).isFalse();
-
-      final ArgumentCaptor<VersionedProfileV1> profileArgumentCaptor = ArgumentCaptor.forClass(VersionedProfileV1.class);
-
-      verify(profilesManager).getV1(eq(AuthHelper.VALID_UUID_TWO), eq(version));
-      verify(profilesManager).setV1(eq(AuthHelper.VALID_UUID_TWO), profileArgumentCaptor.capture());
-
-      verifyNoMoreInteractions(profilesManager);
-
-      final VersionedProfileV1 profile = profileArgumentCaptor.getValue();
-      assertThat(profile.commitment()).isEqualTo(commitment.serialize());
-      assertThat(profile.avatar()).isNull();
-      assertThat(profile.version()).isEqualTo(version);
-      assertThat(profile.name()).isEqualTo(name);
-      assertThat(profile.aboutEmoji()).isNull();
-      assertThat(profile.about()).isNull();
-      assertThat(profile.paymentAddress()).isEqualTo(paymentAddress);
-    }
-  }
-
-  @Test
-  void testSetProfilePaymentAddressCountryNotAllowed() throws InvalidInputException {
-    when(dynamicPaymentsConfiguration.disallowedPrefixes())
-        .thenReturn(List.of(AuthHelper.VALID_NUMBER_TWO.substring(0, 3)));
-
-    final ProfileKeyCommitment commitment = new ProfileKey(new byte[32]).getCommitment(new ServiceId.Aci(AuthHelper.VALID_UUID));
-
-    clearInvocations(AuthHelper.VALID_ACCOUNT_TWO);
-
-    final byte[] name = TestRandomUtil.nextBytes(81);
-    final byte[] paymentAddress = TestRandomUtil.nextBytes(582);
-
-    try (final Response response = resources.getJerseyTest()
-        .target("/v1/profile")
-        .request()
-        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_UUID_TWO, AuthHelper.VALID_PASSWORD_TWO))
-        .put(Entity.entity(
-            new CreateProfileRequest(commitment, versionHex("yetanotherversion"), name,
                 null, null, paymentAddress, false, false,
                 Optional.of(List.of()), null), MediaType.APPLICATION_JSON_TYPE))) {
 
       assertThat(response.getStatus()).isEqualTo(403);
       assertThat(response.hasEntity()).isFalse();
-
       verify(profilesManager, never()).setV1(any(), any());
     }
-  }
-
-  @ParameterizedTest
-  @MethodSource
-  void testSetProfilePaymentAddressCountryNotAllowedExistingPaymentAddress(
-      @Nullable final byte[] existingPaymentAddressOnProfile, final byte[] requestPaymentAddress, final boolean expectAllowed) throws InvalidInputException {
-    when(dynamicPaymentsConfiguration.disallowedPrefixes())
-        .thenReturn(List.of(AuthHelper.VALID_NUMBER_TWO.substring(0, 3)));
-
-    final ProfileKeyCommitment commitment = new ProfileKey(new byte[32]).getCommitment(new ServiceId.Aci(AuthHelper.VALID_UUID));
-    final byte[] name = TestRandomUtil.nextBytes(81);
-    final byte[] phoneNumberSharing = TestRandomUtil.nextBytes(29);
-
-    clearInvocations(AuthHelper.VALID_ACCOUNT_TWO);
-
-    when(profilesManager.getV1(eq(AuthHelper.VALID_UUID_TWO), any()))
-        .thenReturn(Optional.of(
-            new VersionedProfileV1("1", name, null, null, null,
-                existingPaymentAddressOnProfile,
-                phoneNumberSharing,
-                commitment.serialize())));
-
-    final String version = versionHex("yetanotherversion");
-    try (final Response response = resources.getJerseyTest()
-        .target("/v1/profile")
-        .request()
-        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_UUID_TWO, AuthHelper.VALID_PASSWORD_TWO))
-        .put(Entity.entity(
-            new CreateProfileRequest(commitment, version, name,
-                null, null, requestPaymentAddress, false, false,
-                Optional.of(List.of()), null), MediaType.APPLICATION_JSON_TYPE))) {
-
-      if (expectAllowed) {
-        assertThat(response.getStatus()).isEqualTo(200);
-        assertThat(response.hasEntity()).isFalse();
-
-        final ArgumentCaptor<VersionedProfileV1> profileArgumentCaptor = ArgumentCaptor.forClass(VersionedProfileV1.class);
-
-        verify(profilesManager).getV1(eq(AuthHelper.VALID_UUID_TWO), eq(version));
-        verify(profilesManager).setV1(eq(AuthHelper.VALID_UUID_TWO), profileArgumentCaptor.capture());
-
-        verifyNoMoreInteractions(profilesManager);
-
-        final VersionedProfileV1 profile = profileArgumentCaptor.getValue();
-        assertThat(profile.commitment()).isEqualTo(commitment.serialize());
-        assertThat(profile.avatar()).isNull();
-        assertThat(profile.version()).isEqualTo(version);
-        assertThat(profile.name()).isEqualTo(name);
-        assertThat(profile.aboutEmoji()).isNull();
-        assertThat(profile.about()).isNull();
-        assertThat(profile.paymentAddress()).isEqualTo(requestPaymentAddress);
-      } else {
-        assertThat(response.getStatus()).isEqualTo(403);
-        assertThat(response.hasEntity()).isFalse();
-
-        verify(profilesManager, never()).setV1(any(), any());
-      }
-    }
-  }
-
-  static Collection<Arguments> testSetProfilePaymentAddressCountryNotAllowedExistingPaymentAddress() {
-    return List.of(
-        Arguments.argumentSet("null existing payment address, empty new", null, new byte[0], true),
-        Arguments.argumentSet("null existing payment address", null, TestRandomUtil.nextBytes(582), false),
-        Arguments.argumentSet("empty existing payment address, empty new", new byte[0], new byte[0], true),
-        Arguments.argumentSet("empty existing payment address", new byte[0], TestRandomUtil.nextBytes(582), false),
-        Arguments.argumentSet("valid existing payment address", TestRandomUtil.nextBytes(582), TestRandomUtil.nextBytes(582), true)
-    );
   }
 
   @Test
@@ -962,8 +801,7 @@ class ProfileControllerTest {
     assertThat(profile.avatar()).isEqualTo("profiles/validavatar");
     assertThat(profile.phoneNumberSharing()).containsExactly(phoneNumberSharing);
     assertThat(profile.baseProfileResponse().getUuid()).isEqualTo(new AciServiceIdentifier(AuthHelper.VALID_UUID_TWO));
-    assertThat(profile.baseProfileResponse().getBadges()).hasSize(1).element(0).has(new Condition<>(
-        badge -> "Test Badge".equals(badge.getName()), "has badge with expected name"));
+    assertThat(profile.baseProfileResponse().getBadges()).isEmpty();
 
     verify(rateLimiter, times(1)).validate(AuthHelper.VALID_UUID);
   }
@@ -975,8 +813,6 @@ class ProfileControllerTest {
     clearInvocations(AuthHelper.VALID_ACCOUNT_TWO);
 
     final byte[] name = TestRandomUtil.nextBytes(81);
-    final byte[] paymentAddress = TestRandomUtil.nextBytes(582);
-
     final byte[] version = version("someversion");
     final String versionHex = HexFormat.of().formatHex(version);
     try (final Response response = resources.getJerseyTest()
@@ -984,7 +820,7 @@ class ProfileControllerTest {
         .request()
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_UUID_TWO, AuthHelper.VALID_PASSWORD_TWO))
         .put(Entity.entity(
-            new CreateProfileRequest(commitment, versionHex, name, null, null, paymentAddress, false, false,
+            new CreateProfileRequest(commitment, versionHex, name, null, null, null, false, false,
                 Optional.of(List.of()), null), MediaType.APPLICATION_JSON_TYPE))) {
 
       assertThat(response.getStatus()).isEqualTo(200);
@@ -1063,6 +899,7 @@ class ProfileControllerTest {
   }
 
   @Test
+  @Disabled("Consumer badges are not part of the Security Phone server")
   void testSetProfileBadges() throws InvalidInputException {
     final ProfileKeyCommitment commitment = new ProfileKey(new byte[32]).getCommitment(new ServiceId.Aci(AuthHelper.VALID_UUID));
 
@@ -1173,6 +1010,7 @@ class ProfileControllerTest {
   }
 
   @Test
+  @Disabled("Consumer badges are not part of the Security Phone server")
   void testSetProfileBadgeAfterUpdateTries() throws Exception {
     final ProfileKeyCommitment commitment = new ProfileKey(new byte[32]).getCommitment(
         new ServiceId.Aci(AuthHelper.VALID_UUID));
@@ -1394,6 +1232,7 @@ class ProfileControllerTest {
   }
 
   @Test
+  @Disabled("Consumer badges are not part of the Security Phone server")
   void testSetProfileBadgesMissingFromRequest() throws InvalidInputException {
     final ProfileKeyCommitment commitment = new ProfileKey(new byte[32]).getCommitment(new ServiceId.Aci(AuthHelper.VALID_UUID));
 

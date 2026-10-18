@@ -9,7 +9,20 @@ option java_package = "com.securityphone.contracts.v1";
 import "google/protobuf/timestamp.proto";
 
 service AbuseBoundaryService {
+  rpc EvaluateAbuse(EvaluateAbuseRequest) returns (EvaluateAbuseResponse);
   rpc SubmitAbuseSignal(SubmitAbuseSignalRequest) returns (SubmitAbuseSignalResponse);
+}
+
+message EvaluateAbuseRequest {
+  string signal_type = 1;
+  string subject_id = 2;
+  string evidence_reference = 3;
+}
+
+message EvaluateAbuseResponse {
+  bool allowed = 1;
+  string review_id = 2;
+  bool human_approved = 3;
 }
 
 message SubmitAbuseSignalRequest {

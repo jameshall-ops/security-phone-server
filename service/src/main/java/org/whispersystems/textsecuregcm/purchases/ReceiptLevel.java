@@ -7,12 +7,8 @@ package org.whispersystems.textsecuregcm.purchases;
 import java.util.Arrays;
 import java.util.Optional;
 
-/// This enum represents all supported purchasable items. Purchases of these items are encoded into a zero-knowledge
-/// [org.signal.libsignal.zkgroup.receipts.ReceiptCredential], and the long `value` on these items map to the `level`
-/// field of these credentials.
-///
-/// Note: the numeric `level` now mostly serves as a unique identifier for specific item-type, rather than
-/// representing a comparable/ordinal value (which mostly only applies to the donation subscription levels)
+/// Legacy receipt-level identifiers retained only for numberless-account and backup credential compatibility.
+/// Security Phone does not expose the consumer purchase controllers that originally issued these receipts.
 public enum ReceiptLevel {
   ONE_TIME_DONATION(1L),
   ONE_TIME_GIFT_DONATION(100L),
@@ -28,7 +24,7 @@ public enum ReceiptLevel {
 
   private final long value;
 
-  private ReceiptLevel(long value) {
+  ReceiptLevel(final long value) {
     this.value = value;
   }
 
@@ -37,6 +33,6 @@ public enum ReceiptLevel {
   }
 
   public static Optional<ReceiptLevel> lookupLevel(final long level) {
-    return Arrays.stream(VALUES).filter(r -> r.value == level).findFirst();
+    return Arrays.stream(VALUES).filter(receiptLevel -> receiptLevel.value == level).findFirst();
   }
 }

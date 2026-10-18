@@ -242,7 +242,9 @@ public class CredentialsGrpcServiceTest
    * This test makes sure that is the case.
    */
   @ParameterizedTest
-  @EnumSource(mode = EnumSource.Mode.EXCLUDE, names = { "UNRECOGNIZED", "EXTERNAL_SERVICE_TYPE_UNSPECIFIED" })
+  @EnumSource(mode = EnumSource.Mode.EXCLUDE, names = {
+      "UNRECOGNIZED", "EXTERNAL_SERVICE_TYPE_UNSPECIFIED", "EXTERNAL_SERVICE_TYPE_PAYMENTS"
+  })
   public void testHaveExternalServiceDefinitionForServiceTypes(final ExternalServiceType externalServiceType) {
     assertTrue(
         Arrays.stream(ExternalServiceDefinitions.values()).anyMatch(v -> v.externalService() == externalServiceType),

@@ -30,15 +30,10 @@ import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import java.io.IOException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.whispersystems.textsecuregcm.auth.AuthenticatedDevice;
-import org.whispersystems.textsecuregcm.captcha.InvalidCaptchaArgumentException;
 import org.whispersystems.textsecuregcm.entities.AnswerCaptchaChallengeRequest;
 import org.whispersystems.textsecuregcm.entities.AnswerChallengeRequest;
 import org.whispersystems.textsecuregcm.entities.AnswerPushChallengeRequest;
-import org.whispersystems.textsecuregcm.filters.RemoteAddressFilter;
 import org.whispersystems.textsecuregcm.limits.RateLimitChallengeManager;
 import org.whispersystems.textsecuregcm.metrics.UserAgentTagUtil;
 import org.whispersystems.textsecuregcm.push.NotPushRegisteredException;
@@ -54,8 +49,6 @@ public class ChallengeController {
   private final AccountsManager accountsManager;
   private final RateLimitChallengeManager rateLimitChallengeManager;
   private final ChallengeConstraintChecker challengeConstraintChecker;
-
-  private static final Logger logger = LoggerFactory.getLogger(ChallengeController.class);
 
   private static final String CHALLENGE_RESPONSE_COUNTER_NAME = name(ChallengeController.class, "challengeResponse");
   private static final String CHALLENGE_TYPE_TAG = "type";
@@ -108,30 +101,13 @@ public class ChallengeController {
           return Response.status(429).build();
         }
         rateLimitChallengeManager.answerPushChallenge(account, pushChallengeRequest.getChallenge());
-      } else if (answerRequest instanceof final AnswerCaptchaChallengeRequest captchaChallengeRequest) {
+      } else if (answerRequest instanceof AnswerCaptchaChallengeRequest) {
         tags = tags.and(CHALLENGE_TYPE_TAG, "captcha");
-
-        final String remoteAddress = (String) requestContext.getProperty(
-            RemoteAddressFilter.REMOTE_ADDRESS_ATTRIBUTE_NAME);
-        final boolean success = rateLimitChallengeManager.answerCaptchaChallenge(
-            account,
-            captchaChallengeRequest.getCaptcha(),
-            remoteAddress,
-            userAgent,
-            constraints.captchaScoreThreshold());
-
-        if (!success) {
-          return Response.status(428).build();
-        }
+        return Response.status(Response.Status.GONE).build();
 
       } else {
         tags = tags.and(CHALLENGE_TYPE_TAG, "unrecognized");
       }
-    } catch (final InvalidCaptchaArgumentException e) {
-      return Response.status(Response.Status.BAD_REQUEST.getStatusCode(), e.getMessage()).build();
-    } catch (final IOException e) {
-      logger.error("error assessing captcha during challenge response handling", e);
-      return Response.status(Response.Status.SERVICE_UNAVAILABLE).build();
     } finally {
       Metrics.counter(CHALLENGE_RESPONSE_COUNTER_NAME, tags).increment();
     }

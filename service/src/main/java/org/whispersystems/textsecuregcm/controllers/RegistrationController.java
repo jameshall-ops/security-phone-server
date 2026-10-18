@@ -45,10 +45,6 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.signal.libsignal.zkgroup.InvalidInputException;
-import org.signal.libsignal.zkgroup.VerificationFailedException;
-import org.signal.libsignal.zkgroup.receipts.ReceiptCredentialPresentation;
-import org.signal.libsignal.zkgroup.receipts.ServerZkReceiptOperations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.whispersystems.textsecuregcm.auth.BasicAuthorizationHeader;
@@ -79,9 +75,6 @@ import org.whispersystems.textsecuregcm.storage.DeviceIdentityInfo;
 import org.whispersystems.textsecuregcm.storage.DeviceSpec;
 import org.whispersystems.textsecuregcm.storage.DynamicConfigurationManager;
 import org.whispersystems.textsecuregcm.storage.PhoneNumberRecoveryPasswordsManager;
-import org.whispersystems.textsecuregcm.storage.ReceiptAlreadyRedeemedException;
-import org.whispersystems.textsecuregcm.purchases.ReceiptCredentialPresentationFactory;
-import org.whispersystems.textsecuregcm.purchases.ReceiptLevel;
 import org.whispersystems.textsecuregcm.util.HeaderUtils;
 import org.whispersystems.textsecuregcm.util.Util;
 
@@ -105,8 +98,6 @@ public class RegistrationController {
   private final RegistrationLockVerificationManager registrationLockVerificationManager;
   private final RateLimiters rateLimiters;
   private final RegistrationFraudChecker registrationFraudChecker;
-  private final ReceiptCredentialPresentationFactory receiptCredentialPresentationFactory;
-  private final ServerZkReceiptOperations serverZkReceiptOperations;
   private final Clock clock;
   private final DynamicConfigurationManager<DynamicConfiguration> dynamicConfigurationManager;
 
@@ -117,8 +108,6 @@ public class RegistrationController {
                                 final RegistrationLockVerificationManager registrationLockVerificationManager,
                                 final RateLimiters rateLimiters,
                                 final RegistrationFraudChecker registrationFraudChecker,
-                                final ReceiptCredentialPresentationFactory receiptCredentialPresentationFactory,
-                                final ServerZkReceiptOperations serverZkReceiptOperations,
                                 final Clock clock,
                                 final DynamicConfigurationManager<DynamicConfiguration> dynamicConfigurationManager) {
 
@@ -127,8 +116,6 @@ public class RegistrationController {
     this.registrationLockVerificationManager = registrationLockVerificationManager;
     this.rateLimiters = rateLimiters;
     this.registrationFraudChecker = registrationFraudChecker;
-    this.receiptCredentialPresentationFactory = receiptCredentialPresentationFactory;
-    this.serverZkReceiptOperations = serverZkReceiptOperations;
     this.clock = clock;
     this.dynamicConfigurationManager = dynamicConfigurationManager;
   }
@@ -194,32 +181,23 @@ public class RegistrationController {
       throw new WebApplicationException("Missing required device capability", 499);
     }
 
-    final AccountCreationResponse response;
-
     if (registrationRequest.receiptCredentialPresentation() != null && registrationRequest.receiptCredentialPresentation().length > 0) {
-      // A receipt credential presentation will only be present if the caller is trying to register a new account
-      // without a phone number, in which case we can (and must) ignore the "username" in the authentication header.
-      response = registerAccountWithoutNumber(authorizationHeader.getPassword(), registrationRequest, userAgent, signalAgent);
-    } else {
-      // The caller is either trying to register a new account with a phone number or recover an account by ACI. Either
-      // way, the "username" from the auth header is meaningful.
-      @Nullable UUID recoveredAccountIdentifier;
-
-      try {
-        recoveredAccountIdentifier = UUID.fromString(authorizationHeader.getUsername());
-      } catch (final IllegalArgumentException _) {
-        // The provided username is either a phone number or a nonsense string (for registration without a phone number)
-        recoveredAccountIdentifier = null;
-      }
-
-      if (recoveredAccountIdentifier != null) {
-        response = recoverAccount(recoveredAccountIdentifier, authorizationHeader.getPassword(), registrationRequest, userAgent, signalAgent);
-      } else {
-        response = registerAccountWithNumber(authorizationHeader.getUsername(), authorizationHeader.getPassword(), registrationRequest, requestContext, userAgent, signalAgent);
-      }
+      throw new WebApplicationException("Receipt-based registration is no longer available", Response.Status.GONE);
     }
 
-    return response;
+    @Nullable UUID recoveredAccountIdentifier;
+
+    try {
+      recoveredAccountIdentifier = UUID.fromString(authorizationHeader.getUsername());
+    } catch (final IllegalArgumentException _) {
+      recoveredAccountIdentifier = null;
+    }
+
+    return recoveredAccountIdentifier != null
+        ? recoverAccount(recoveredAccountIdentifier, authorizationHeader.getPassword(), registrationRequest, userAgent,
+            signalAgent)
+        : registerAccountWithNumber(authorizationHeader.getUsername(), authorizationHeader.getPassword(),
+            registrationRequest, requestContext, userAgent, signalAgent);
   }
 
   private AccountCreationResponse registerAccountWithNumber(
@@ -335,81 +313,11 @@ public class RegistrationController {
     return new AccountCreationResponse(identityResponse, existingAccount.isPresent());
   }
 
-  private AccountCreationResponse registerAccountWithoutNumber(
-      final String password,
-      final RegistrationRequest registrationRequest,
-      final String userAgent,
-      final String signalAgent) {
-
-    if (!dynamicConfigurationManager.getConfiguration().getLoginPurchaseConfiguration().enabled()) {
-      throw new BadRequestException("login purchases are not enabled");
-    }
-
-    registrationRequest.accountAttributes().recoveryPassword()
-        .filter(ArrayUtils::isNotEmpty)
-        .orElseThrow(() -> new WebApplicationException("Account recovery password is required", 422));
-
-    final ReceiptCredentialPresentation receiptCredentialPresentation;
-    try {
-      receiptCredentialPresentation = receiptCredentialPresentationFactory
-          .build(registrationRequest.receiptCredentialPresentation());
-    } catch (InvalidInputException _) {
-      throw new BadRequestException("Invalid receipt credential presentation");
-    }
-    try {
-      serverZkReceiptOperations.verifyReceiptCredentialPresentation(receiptCredentialPresentation);
-    } catch (VerificationFailedException _) {
-      throw new NotAuthorizedException("Receipt credential presentation verification failed");
-    }
-
-    final Instant receiptExpiration = Instant.ofEpochSecond(receiptCredentialPresentation.getReceiptExpirationTime());
-    if (clock.instant().isAfter(receiptExpiration)) {
-      throw new NotAuthorizedException("Receipt is already expired");
-    }
-
-    final long receiptLevel = receiptCredentialPresentation.getReceiptLevel();
-    if (receiptLevel != ReceiptLevel.LOGIN.getValue() && receiptLevel != ReceiptLevel.LOGIN_SANDBOX.getValue()) {
-      throw new BadRequestException("Invalid receipt level");
-    }
-
-    try {
-      final Account account = accounts.create(
-          registrationRequest.accountAttributes(),
-          registrationRequest.aciIdentityKey(),
-          receiptCredentialPresentation,
-          new DeviceSpec(
-              registrationRequest.accountAttributes().getName(),
-              password,
-              signalAgent,
-              registrationRequest.accountAttributes().getCapabilities(),
-              new DeviceIdentityInfo(registrationRequest.accountAttributes().getRegistrationId(), registrationRequest.deviceActivationRequest()
-                  .aciSignedPreKey(), registrationRequest.deviceActivationRequest().aciPqLastResortPreKey()),
-              Optional.empty(),
-              registrationRequest.accountAttributes().getFetchesMessages(),
-              registrationRequest.deviceActivationRequest().apnToken(),
-              registrationRequest.deviceActivationRequest().gcmToken()),
-          userAgent);
-
-      Metrics.counter(ACCOUNT_CREATED_COUNTER_NAME, Tags.of(UserAgentTagUtil.getPlatformTag(userAgent),
-              Tag.of(VERIFICATION_TYPE_TAG_NAME, registrationRequest.verificationType().name())))
-          .increment();
-
-      final AccountIdentityResponse accountIdentityResponse = new AccountIdentityResponseBuilder(account).build();
-      return new AccountCreationResponse(accountIdentityResponse, false);
-    } catch (ReceiptAlreadyRedeemedException _) {
-      throw new NotAuthorizedException("Receipt already redeemed");
-    }
-  }
-
   private AccountCreationResponse recoverAccount(final UUID accountIdentifier,
       final String password,
       final RegistrationRequest registrationRequest,
       final String userAgent,
       final String signalAgent) throws RegistrationLockFailureException, RateLimitExceededException, MfaFailureException {
-
-    if (!dynamicConfigurationManager.getConfiguration().getLoginPurchaseConfiguration().enabled()) {
-      throw new BadRequestException("login purchases are not enabled");
-    }
 
     if (ArrayUtils.isEmpty(registrationRequest.recoveryPassword())) {
       throw new BadRequestException("Recovery password required for authentication when recovering an account by identifier");

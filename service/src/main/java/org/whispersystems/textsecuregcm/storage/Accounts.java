@@ -298,6 +298,53 @@ public class Accounts {
     return true;
   }
 
+  /**
+   * Creates a numberless account authorized by the governed SAM OS registration boundary. Unlike legacy Signal Login
+   * account creation, this path has no payment receipt and writes no phone-number constraint record.
+   */
+  boolean createGovernedNumberless(final Account account, final List<TransactWriteItem> additionalWriteItems)
+      throws AccountCreationConditionException {
+
+    if (account.getNumber().isPresent() || account.getPhoneNumberIdentifier().isPresent()) {
+      throw new IllegalArgumentException("Governed numberless accounts must not contain phone data");
+    }
+
+    final Timer.Sample sample = Timer.start();
+    try {
+      final AttributeValue uuidAttr = AttributeValues.fromUUID(account.getAccountIdentifier());
+      final TransactWriteItem accountPut = buildAccountPut(account, uuidAttr, Optional.empty(), Optional.empty());
+      final Collection<TransactWriteItem> writeItems = new ArrayList<>(List.of(accountPut));
+      final int additionalWriteItemsStart = writeItems.size();
+      writeItems.addAll(additionalWriteItems);
+
+      try {
+        dynamoDbClient.transactWriteItems(TransactWriteItemsRequest.builder()
+            .transactItems(writeItems)
+            .build());
+      } catch (final TransactionCanceledException e) {
+        for (int i = additionalWriteItemsStart; i < e.cancellationReasons().size(); i++) {
+          if (conditionalCheckFailed(e.cancellationReasons().get(i))) {
+            throw new AccountCreationConditionException(i - additionalWriteItemsStart);
+          }
+        }
+
+        final CancellationReason accountCancellationReason = e.cancellationReasons().getFirst();
+        if (conditionalCheckFailed(accountCancellationReason)) {
+          throw new IllegalStateException(
+              "SAM OS returned an ACI that already exists: " + account.getAccountIdentifier());
+        }
+        if (TRANSACTION_CONFLICT.equals(accountCancellationReason.code())) {
+          throw new ContestedOptimisticLockException();
+        }
+        throw new RuntimeException("could not create governed numberless account: " + extractCancellationReasonCodes(e));
+      }
+    } finally {
+      sample.stop(CREATE_TIMER);
+    }
+
+    return true;
+  }
+
   /// Create an account record via a receipt presentation
   ///
   /// @param account                          The account to create

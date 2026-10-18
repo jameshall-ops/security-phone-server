@@ -186,15 +186,6 @@ public class AccountsGrpcService extends SimpleAccountsGrpc.AccountsImplBase {
           .setLevel(backupVoucher.receiptLevel()));
     }
 
-    builder.addAllBadges(account.getBadges().stream()
-        .filter(badge -> badge.expiration().isAfter(now))
-        .map(badge -> GetEntitlementsResponse.BadgeEntitlement.newBuilder()
-            .setBadgeId(badge.id())
-            .setExpirationEpochSeconds(badge.expiration().getEpochSecond())
-            .setVisible(badge.visible())
-            .build())
-        .toList());
-
     return builder.build();
   }
 

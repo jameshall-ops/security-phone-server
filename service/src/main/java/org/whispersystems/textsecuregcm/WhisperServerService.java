@@ -45,13 +45,11 @@ import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.Mapping;
 import jakarta.servlet.DispatcherType;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.http.HttpClient;
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Collections;
@@ -59,7 +57,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -67,7 +64,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -76,12 +72,10 @@ import org.eclipse.jetty.websocket.core.WebSocketExtensionRegistry;
 import org.eclipse.jetty.websocket.core.server.WebSocketServerComponents;
 import org.glassfish.jersey.server.ServerProperties;
 import org.signal.chat.require.Auth;
-import org.signal.i18n.HeaderControlledResourceBundleLookup;
 import org.signal.libsignal.zkgroup.GenericServerSecretParams;
 import org.signal.libsignal.zkgroup.ServerSecretParams;
 import org.signal.libsignal.zkgroup.auth.ServerZkAuthOperations;
 import org.signal.libsignal.zkgroup.profiles.ServerZkProfileOperations;
-import org.signal.libsignal.zkgroup.receipts.ReceiptCredentialPresentation;
 import org.signal.libsignal.zkgroup.receipts.ServerZkReceiptOperations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,12 +101,9 @@ import org.whispersystems.textsecuregcm.backup.BackupsDb;
 import org.whispersystems.textsecuregcm.backup.Cdn3BackupCredentialGenerator;
 import org.whispersystems.textsecuregcm.backup.Cdn3RemoteStorageManager;
 import org.whispersystems.textsecuregcm.backup.SecureValueRecoveryBCredentialsGeneratorFactory;
-import org.whispersystems.textsecuregcm.badges.ConfiguredProfileBadgeConverter;
 import org.whispersystems.textsecuregcm.captcha.CaptchaChecker;
 import org.whispersystems.textsecuregcm.captcha.CaptchaClient;
-import org.whispersystems.textsecuregcm.captcha.RegistrationCaptchaManager;
 import org.whispersystems.textsecuregcm.captcha.ShortCodeExpander;
-import org.whispersystems.textsecuregcm.configuration.BadgeConfiguration;
 import org.whispersystems.textsecuregcm.configuration.FoundationDbExternalClientConfiguration;
 import org.whispersystems.textsecuregcm.configuration.dynamic.DynamicConfiguration;
 import org.whispersystems.textsecuregcm.configuration.secrets.SecretStore;
@@ -129,26 +120,19 @@ import org.whispersystems.textsecuregcm.controllers.ChallengeController;
 import org.whispersystems.textsecuregcm.controllers.DeviceCheckController;
 import org.whispersystems.textsecuregcm.controllers.DeviceController;
 import org.whispersystems.textsecuregcm.controllers.DirectoryV2Controller;
-import org.whispersystems.textsecuregcm.controllers.DonationController;
 import org.whispersystems.textsecuregcm.controllers.KeepAliveController;
 import org.whispersystems.textsecuregcm.controllers.KeyTransparencyController;
 import org.whispersystems.textsecuregcm.controllers.KeysController;
-import org.whispersystems.textsecuregcm.controllers.LoginPurchaseController;
 import org.whispersystems.textsecuregcm.controllers.MessageController;
-import org.whispersystems.textsecuregcm.controllers.OneTimeDonationController;
-import org.whispersystems.textsecuregcm.controllers.PaymentsController;
 import org.whispersystems.textsecuregcm.controllers.ProfileController;
 import org.whispersystems.textsecuregcm.controllers.ProvisioningController;
 import org.whispersystems.textsecuregcm.controllers.RegistrationController;
 import org.whispersystems.textsecuregcm.controllers.RemoteConfigController;
+import org.whispersystems.textsecuregcm.controllers.SamOsRegistrationController;
 import org.whispersystems.textsecuregcm.controllers.SecureStorageController;
 import org.whispersystems.textsecuregcm.controllers.SecureValueRecovery2Controller;
 import org.whispersystems.textsecuregcm.controllers.StickerController;
-import org.whispersystems.textsecuregcm.controllers.SubscriptionController;
 import org.whispersystems.textsecuregcm.controllers.VerificationController;
-import org.whispersystems.textsecuregcm.currency.CoinGeckoClient;
-import org.whispersystems.textsecuregcm.currency.CurrencyConversionManager;
-import org.whispersystems.textsecuregcm.currency.FixerClient;
 import org.whispersystems.textsecuregcm.experiment.ExperimentEnrollmentManager;
 import org.whispersystems.textsecuregcm.filters.ExternalRequestFilter;
 import org.whispersystems.textsecuregcm.filters.PriorityFilter;
@@ -169,7 +153,6 @@ import org.whispersystems.textsecuregcm.grpc.ChallengeGrpcService;
 import org.whispersystems.textsecuregcm.grpc.CredentialsAnonymousGrpcService;
 import org.whispersystems.textsecuregcm.grpc.CredentialsGrpcService;
 import org.whispersystems.textsecuregcm.grpc.DevicesGrpcService;
-import org.whispersystems.textsecuregcm.grpc.DonationsGrpcService;
 import org.whispersystems.textsecuregcm.grpc.ErrorConformanceInterceptor;
 import org.whispersystems.textsecuregcm.grpc.ConcurrentCallLimitingInterceptor;
 import org.whispersystems.textsecuregcm.grpc.ErrorMappingInterceptor;
@@ -179,19 +162,14 @@ import org.whispersystems.textsecuregcm.grpc.GrpcAllowListInterceptor;
 import org.whispersystems.textsecuregcm.grpc.KeyTransparencyGrpcService;
 import org.whispersystems.textsecuregcm.grpc.KeysAnonymousGrpcService;
 import org.whispersystems.textsecuregcm.grpc.KeysGrpcService;
-import org.whispersystems.textsecuregcm.grpc.LoginPurchaseGrpcService;
 import org.whispersystems.textsecuregcm.grpc.MessageDispatcher;
 import org.whispersystems.textsecuregcm.grpc.MessagesAnonymousGrpcService;
 import org.whispersystems.textsecuregcm.grpc.MessagesGrpcService;
 import org.whispersystems.textsecuregcm.grpc.MetricServerInterceptor;
-import org.whispersystems.textsecuregcm.grpc.OneTimeDonationsGrpcService;
-import org.whispersystems.textsecuregcm.grpc.PaymentsGrpcService;
-import org.whispersystems.textsecuregcm.grpc.ProductConfigurationGrpcService;
 import org.whispersystems.textsecuregcm.grpc.ProfileAnonymousGrpcService;
 import org.whispersystems.textsecuregcm.grpc.ProfileGrpcService;
 import org.whispersystems.textsecuregcm.grpc.RemoteConfigurationGrpcService;
 import org.whispersystems.textsecuregcm.grpc.RequestAttributesInterceptor;
-import org.whispersystems.textsecuregcm.grpc.SubscriptionsGrpcService;
 import org.whispersystems.textsecuregcm.grpc.ValidatingInterceptor;
 import org.whispersystems.textsecuregcm.grpc.net.ManagedEventLoopGroup;
 import org.whispersystems.textsecuregcm.grpc.net.ManagedGrpcServer;
@@ -221,7 +199,6 @@ import org.whispersystems.textsecuregcm.mappers.RateLimitExceededExceptionMapper
 import org.whispersystems.textsecuregcm.mappers.RegistrationLockFailureExceptionMapper;
 import org.whispersystems.textsecuregcm.mappers.RegistrationServiceSenderExceptionMapper;
 import org.whispersystems.textsecuregcm.mappers.ServerRejectedExceptionMapper;
-import org.whispersystems.textsecuregcm.mappers.PurchaseExceptionMapper;
 import org.whispersystems.textsecuregcm.metrics.BackupMetrics;
 import org.whispersystems.textsecuregcm.metrics.CallQualitySurveyManager;
 import org.whispersystems.textsecuregcm.metrics.MessageMetrics;
@@ -245,15 +222,21 @@ import org.whispersystems.textsecuregcm.redis.ConnectionEventLogger;
 import org.whispersystems.textsecuregcm.redis.FaultTolerantRedisClient;
 import org.whispersystems.textsecuregcm.redis.FaultTolerantRedisClusterClient;
 import org.whispersystems.textsecuregcm.registration.RegistrationServiceClient;
+import org.whispersystems.textsecuregcm.registration.SamOsRegistrationClient;
 import org.whispersystems.textsecuregcm.s3.PostPolicyGenerator;
 import org.whispersystems.textsecuregcm.s3.S3MonitoringSupplier;
 import org.whispersystems.textsecuregcm.securestorage.SecureStorageClient;
 import org.whispersystems.textsecuregcm.securevaluerecovery.SecureValueRecoveryClient;
 import org.whispersystems.textsecuregcm.spam.ChallengeConstraintChecker;
+import org.whispersystems.textsecuregcm.spam.AbuseChallengeConstraintChecker;
+import org.whispersystems.textsecuregcm.spam.AbuseClient;
+import org.whispersystems.textsecuregcm.spam.AbuseRegistrationFraudChecker;
+import org.whispersystems.textsecuregcm.spam.AbuseRegistrationRecoveryChecker;
+import org.whispersystems.textsecuregcm.spam.AbuseSpamChecker;
+import org.whispersystems.textsecuregcm.spam.GrpcAbuseClient;
 import org.whispersystems.textsecuregcm.spam.RegistrationFraudChecker;
 import org.whispersystems.textsecuregcm.spam.RegistrationRecoveryChecker;
 import org.whispersystems.textsecuregcm.spam.SpamChecker;
-import org.whispersystems.textsecuregcm.spam.SpamFilter;
 import org.whispersystems.textsecuregcm.storage.AccountLockManager;
 import org.whispersystems.textsecuregcm.storage.Accounts;
 import org.whispersystems.textsecuregcm.storage.AccountsManager;
@@ -262,16 +245,12 @@ import org.whispersystems.textsecuregcm.storage.ChangeNumberWaitingPeriodManager
 import org.whispersystems.textsecuregcm.storage.ChangeNumberWaitingPeriods;
 import org.whispersystems.textsecuregcm.storage.ClientReleaseManager;
 import org.whispersystems.textsecuregcm.storage.ClientReleases;
-import org.whispersystems.textsecuregcm.storage.DonationPermits;
-import org.whispersystems.textsecuregcm.storage.DonationPermitsManager;
 import org.whispersystems.textsecuregcm.storage.DynamicConfigurationManager;
 import org.whispersystems.textsecuregcm.storage.FoundationDbVersion;
-import org.whispersystems.textsecuregcm.storage.IssuedReceiptsManager;
 import org.whispersystems.textsecuregcm.storage.KeysManager;
 import org.whispersystems.textsecuregcm.storage.MessagesCache;
 import org.whispersystems.textsecuregcm.storage.MessagesDynamoDb;
 import org.whispersystems.textsecuregcm.storage.MessagesManager;
-import org.whispersystems.textsecuregcm.storage.OneTimeDonationsManager;
 import org.whispersystems.textsecuregcm.storage.PagedSingleUseKEMPreKeyStore;
 import org.whispersystems.textsecuregcm.storage.PersistentTimer;
 import org.whispersystems.textsecuregcm.storage.PhoneNumberIdentifiers;
@@ -291,8 +270,6 @@ import org.whispersystems.textsecuregcm.storage.ReportMessageDynamoDb;
 import org.whispersystems.textsecuregcm.storage.ReportMessageManager;
 import org.whispersystems.textsecuregcm.storage.SandboxAccounts;
 import org.whispersystems.textsecuregcm.storage.SingleUseECPreKeyStore;
-import org.whispersystems.textsecuregcm.storage.SubscriptionManager;
-import org.whispersystems.textsecuregcm.storage.Subscriptions;
 import org.whispersystems.textsecuregcm.storage.TotpManager;
 import org.whispersystems.textsecuregcm.storage.VerificationSessionManager;
 import org.whispersystems.textsecuregcm.storage.VerificationSessions;
@@ -303,15 +280,6 @@ import org.whispersystems.textsecuregcm.storage.foundationdb.FaultTolerantDataba
 import org.whispersystems.textsecuregcm.storage.foundationdb.FoundationDbMessageStore;
 import org.whispersystems.textsecuregcm.storage.foundationdb.FoundationDBWarmup;
 import org.whispersystems.textsecuregcm.storage.foundationdb.VersionstampUUIDCipher;
-import org.whispersystems.textsecuregcm.purchases.AppleAppStoreClient;
-import org.whispersystems.textsecuregcm.purchases.AppleAppStoreManager;
-import org.whispersystems.textsecuregcm.purchases.BankMandateTranslator;
-import org.whispersystems.textsecuregcm.purchases.BraintreeManager;
-import org.whispersystems.textsecuregcm.purchases.GooglePlayBillingManager;
-import org.whispersystems.textsecuregcm.purchases.LoginPurchaseManager;
-import org.whispersystems.textsecuregcm.purchases.PayPalDonationsTranslator;
-import org.whispersystems.textsecuregcm.purchases.PaymentProvider;
-import org.whispersystems.textsecuregcm.purchases.StripeManager;
 import org.whispersystems.textsecuregcm.telephony.CarrierDataProvider;
 import org.whispersystems.textsecuregcm.telephony.hlrlookup.HlrLookupCarrierDataProvider;
 import org.whispersystems.textsecuregcm.util.BufferingInterceptor;
@@ -333,7 +301,6 @@ import org.whispersystems.textsecuregcm.workers.BackupUsageRecalculationCommand;
 import org.whispersystems.textsecuregcm.workers.CertificateCommand;
 import org.whispersystems.textsecuregcm.workers.CheckDynamicConfigurationCommand;
 import org.whispersystems.textsecuregcm.workers.ClearExpiredFoundationDbMessagesCommand;
-import org.whispersystems.textsecuregcm.workers.ClearIssuedReceiptRedemptionsCommand;
 import org.whispersystems.textsecuregcm.workers.ClearOrphanedFoundationDbQueuesCommand;
 import org.whispersystems.textsecuregcm.workers.CopyToS3Command;
 import org.whispersystems.textsecuregcm.workers.DeleteUserCommand;
@@ -412,7 +379,6 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
     bootstrap.addCommand(new RemoveExpiredLinkedDevicesCommand());
     bootstrap.addCommand(new UnlinkDevicesWithIdlePrimaryCommand(Clock.systemUTC()));
     bootstrap.addCommand(new NotifyIdleDevicesCommand());
-    bootstrap.addCommand(new ClearIssuedReceiptRedemptionsCommand());
     bootstrap.addCommand(new CopyToS3Command());
     bootstrap.addCommand(new ClearExpiredFoundationDbMessagesCommand(Clock.systemUTC()));
     bootstrap.addCommand(new TrimOversizedFoundationDbMessageQueuesCommand());
@@ -424,11 +390,6 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
 
     bootstrap.addCommand(new RegenerateSecondaryDynamoDbTableDataCommand());
 
-    ServiceLoader.load(SpamFilter.class)
-        .stream()
-        .map(ServiceLoader.Provider::get)
-        .flatMap(spamFilter -> spamFilter.getCommands().stream())
-        .forEach(bootstrap::addCommand);
   }
 
   @Override
@@ -480,14 +441,6 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
     }
 
     environment.lifecycle().addEventListener(new JettyHttpConfigurationCustomizer());
-
-    HeaderControlledResourceBundleLookup headerControlledResourceBundleLookup =
-        new HeaderControlledResourceBundleLookup();
-    ConfiguredProfileBadgeConverter profileBadgeConverter = new ConfiguredProfileBadgeConverter(
-        clock, config.getBadges(), headerControlledResourceBundleLookup);
-    BankMandateTranslator bankMandateTranslator = new BankMandateTranslator(headerControlledResourceBundleLookup);
-    PayPalDonationsTranslator payPalDonationsTranslator =
-        new PayPalDonationsTranslator(headerControlledResourceBundleLookup);
 
     environment.lifecycle().manage(new ManagedAwsCrt());
 
@@ -710,10 +663,6 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
         .minThreads(2)
         .build();
 
-    ExecutorService subscriptionProcessorExecutor = ManagedExecutors.newVirtualThreadPerTaskExecutor(
-        "subscriptionProcessor",
-        config.getVirtualThreadConfiguration().maxConcurrentThreadsPerExecutor(),
-        environment);
     ExecutorService clientEventExecutor = ManagedExecutors.newVirtualThreadPerTaskExecutor(
         "clientEvent",
         config.getVirtualThreadConfiguration().maxConcurrentThreadsPerExecutor(),
@@ -743,8 +692,6 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
         config.getDirectoryV2Configuration().getDirectoryV2ClientConfiguration());
     ExternalServiceCredentialsGenerator storageCredentialsGenerator = SecureStorageController.credentialsGenerator(
         config.getSecureStorageServiceConfiguration());
-    ExternalServiceCredentialsGenerator paymentsCredentialsGenerator = PaymentsController.credentialsGenerator(
-        config.getPaymentsServiceConfiguration());
     ExternalServiceCredentialsGenerator svr2CredentialsGenerator = SecureValueRecovery2Controller.credentialsGenerator(
         config.getSvr2Configuration());
     ExternalServiceCredentialsGenerator svrbCredentialsGenerator =
@@ -772,6 +719,22 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
 
     RegistrationServiceClient registrationServiceClient = config.getRegistrationServiceConfiguration()
         .build(environment, registrationIdentityTokenRefreshExecutor);
+    final Optional<SamOsRegistrationClient> samOsRegistrationClient;
+    if (config.getSamOsRegistrationServiceConfiguration().configured()) {
+      try {
+        final SamOsRegistrationClient configuredClient = new SamOsRegistrationClient(
+            config.getSamOsRegistrationServiceConfiguration().host(),
+            config.getSamOsRegistrationServiceConfiguration().port(),
+            config.getSamOsRegistrationServiceConfiguration().trustedCaCertificate(),
+            config.getSamOsRegistrationServiceConfiguration().timeout());
+        environment.lifecycle().manage(configuredClient);
+        samOsRegistrationClient = Optional.of(configuredClient);
+      } catch (final IOException e) {
+        throw new IllegalStateException("Could not configure the SAM OS registration boundary", e);
+      }
+    } else {
+      samOsRegistrationClient = Optional.empty();
+    }
     KeyTransparencyServiceClient keyTransparencyServiceClient = new KeyTransparencyServiceClient(
         config.getKeyTransparencyServiceConfiguration().host(),
         config.getKeyTransparencyServiceConfiguration().port(),
@@ -847,17 +810,6 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
         new PushNotificationManager(accountsManager, apnSender, fcmSender, pushNotificationScheduler);
     RateLimiters rateLimiters = RateLimiters.create(dynamicConfigurationManager, rateLimitersCluster, retryExecutor);
     ProvisioningManager provisioningManager = new ProvisioningManager(pubsubClient);
-    IssuedReceiptsManager issuedReceiptsManager = new IssuedReceiptsManager(
-        config.getDynamoDbTables().getIssuedReceipts().getTableName(),
-        dynamoDbClient,
-        config.getDynamoDbTables().getIssuedReceipts().getGenerator(),
-        config.getDynamoDbTables().getIssuedReceipts().getMaxReceiptsPerSubscriptionPayment());
-    OneTimeDonationsManager oneTimeDonationsManager = new OneTimeDonationsManager(
-        config.getDynamoDbTables().getOnetimeDonations().getTableName(), config.getDynamoDbTables().getOnetimeDonations().getExpiration(), dynamoDbClient);
-    DonationPermits donationPermits = new DonationPermits(
-        config.getDynamoDbTables().getDonationPermits().getTableName(), config.getDynamoDbTables().getDonationPermits().getExpiration(), dynamoDbClient);
-    Subscriptions subscriptions = new Subscriptions(
-        config.getDynamoDbTables().getSubscriptions().getTableName(), dynamoDbClient);
     CallQualitySurveyManager callQualitySurveyManager = new CallQualitySurveyManager(asnInfoProviderSupplier,
         config.getCallQualitySurveyConfiguration().pubSubPublisher().build(),
         Clock.systemUTC(),
@@ -900,42 +852,9 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
     PushChallengeManager pushChallengeManager = new PushChallengeManager(pushNotificationManager,
         pushChallengeDynamoDb);
 
-    HttpClient currencyClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).connectTimeout(Duration.ofSeconds(10)).build();
-    FixerClient fixerClient = config.getPaymentsServiceConfiguration().externalClients()
-        .buildFixerClient(currencyClient);
-    CoinGeckoClient coinGeckoClient = config.getPaymentsServiceConfiguration().externalClients()
-        .buildCoinGeckoClient(currencyClient);
-    CurrencyConversionManager currencyManager = new CurrencyConversionManager(fixerClient, coinGeckoClient,
-        cacheCluster, config.getPaymentsServiceConfiguration().paymentCurrencies(), recurringJobExecutor, Clock.systemUTC());
     VirtualThreadPinEventMonitor virtualThreadPinEventMonitor = new VirtualThreadPinEventMonitor(
         virtualThreadEventLoggerExecutor,
         config.getVirtualThreadConfiguration().pinEventThreshold());
-
-    StripeManager stripeManager = new StripeManager(config.getStripe().apiKey().value(), subscriptionProcessorExecutor,
-        config.getStripe().idempotencyKeyGenerator().value(), config.getStripe().boostDescription(), config.getStripe().supportedCurrenciesByPaymentMethod());
-    BraintreeManager braintreeManager = new BraintreeManager(config.getBraintree().merchantId(),
-        config.getBraintree().publicKey().value(), config.getBraintree().privateKey().value(),
-        config.getBraintree().environment(),
-        config.getBraintree().supportedCurrenciesByPaymentMethod(), config.getBraintree().merchantAccounts(),
-        config.getBraintree().graphqlUrl(), currencyManager, config.getBraintree().pubSubPublisher().build(),
-        config.getBraintree().circuitBreakerConfigurationName(), subscriptionProcessorExecutor);
-    GooglePlayBillingManager googlePlayBillingManager = new GooglePlayBillingManager(
-        new ByteArrayInputStream(config.getGooglePlayBilling().credentialsJson().getBytes(StandardCharsets.UTF_8)),
-        config.getGooglePlayBilling().packageName(),
-        config.getGooglePlayBilling().applicationName(),
-        config.getGooglePlayBilling().productIdToLevel());
-    AppleAppStoreManager appleAppStoreManager = new AppleAppStoreManager(
-        new AppleAppStoreClient(
-            config.getAppleAppStore().env(),
-            config.getAppleAppStore().bundleId(),
-            config.getAppleAppStore().appAppleId(),
-            config.getAppleAppStore().issuerId(),
-            config.getAppleAppStore().keyId(),
-            config.getAppleAppStore().encodedKey().value(),
-            config.getAppleAppStore().appleRootCerts(),
-            config.getAppleAppStore().retryConfigurationName()),
-        config.getAppleAppStore().subscriptionGroupId(),
-        config.getAppleAppStore().productIdToLevel());
 
     environment.lifecycle().manage(asnInfoProviderSupplier);
 
@@ -945,7 +864,6 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
     environment.lifecycle().manage(provisioningManager);
     environment.lifecycle().manage(disconnectionRequestManager);
     environment.lifecycle().manage(redisMessageAvailabilityManager);
-    environment.lifecycle().manage(currencyManager);
     environment.lifecycle().manage(registrationServiceClient);
     environment.lifecycle().manage(keyTransparencyServiceClient);
     environment.lifecycle().manage(clientReleaseManager);
@@ -1016,88 +934,26 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
         config.getAppleDeviceCheck().teamId(),
         config.getAppleDeviceCheck().bundleId());
 
-    final DonationPermitsManager donationPermitsManager = new DonationPermitsManager(donationPermits, groupZkSecretParams,
-        clock);
+    final AbuseClient abuseClient = config.getAbuseServiceConfiguration().configured()
+        ? new GrpcAbuseClient(config.getAbuseServiceConfiguration().target(),
+            config.getAbuseServiceConfiguration().timeout())
+        : AbuseClient.denyAll();
+    environment.lifecycle().manage(abuseClient);
 
-    final SubscriptionManager subscriptionManager = new SubscriptionManager(subscriptions,
-        List.of(stripeManager, braintreeManager, googlePlayBillingManager, appleAppStoreManager),
-        zkReceiptOperations, issuedReceiptsManager);
-
-    final LoginPurchaseManager loginPurchaseManager = new LoginPurchaseManager(
-        Map.of(
-            PaymentProvider.APPLE_APP_STORE, appleAppStoreManager,
-            PaymentProvider.GOOGLE_PLAY_BILLING, googlePlayBillingManager),
-        issuedReceiptsManager,
-        zkReceiptOperations);
-
-    final List<SpamFilter> spamFilters = ServiceLoader.load(SpamFilter.class)
-        .stream()
-        .map(ServiceLoader.Provider::get)
-        .flatMap(filter -> {
-          try {
-            filter.configure(config.getSpamFilterConfiguration().getEnvironment(), environment.getValidator());
-            return Stream.of(filter);
-          } catch (Exception e) {
-            log.warn("Failed to register spam filter: {}", filter.getClass().getName(), e);
-            return Stream.empty();
-          }
-        })
-        .toList();
-    if (spamFilters.size() > 1) {
-      log.warn("Multiple spam report token providers found. Using the first.");
-    }
-    final Optional<SpamFilter> spamFilter = spamFilters.stream().findFirst();
-    if (spamFilter.isEmpty()) {
-      log.warn("No spam filters installed");
-    }
-    final SpamChecker spamChecker = spamFilter
-        .map(SpamFilter::getSpamChecker)
-        .orElseGet(() -> {
-          log.warn("No spam-checkers found; using default (no-op) provider as a default");
-          return SpamChecker.noop();
-        });
-    final ChallengeConstraintChecker challengeConstraintChecker = spamFilter
-        .map(SpamFilter::getChallengeConstraintChecker)
-        .orElseGet(() -> {
-          log.warn("No challenge-constraint-checkers found; using default (no-op) provider as a default");
-          return ChallengeConstraintChecker.noop();
-        });
-    final RegistrationFraudChecker registrationFraudChecker = spamFilter
-        .map(SpamFilter::getRegistrationFraudChecker)
-        .orElseGet(() -> {
-          log.warn("No registration-fraud-checkers found; using default (no-op) provider as a default");
-          return RegistrationFraudChecker.noop();
-        });
-    final RegistrationRecoveryChecker registrationRecoveryChecker = spamFilter
-        .map(SpamFilter::getRegistrationRecoveryChecker)
-        .orElseGet(() -> {
-          log.warn("No registration-recovery-checkers found; using default (no-op) provider as a default");
-          return RegistrationRecoveryChecker.noop();
-        });
-    final Function<String, CaptchaClient> captchaClientSupplier = spamFilter
-        .map(SpamFilter::getCaptchaClientSupplier)
-        .orElseGet(() -> {
-          log.warn("No captcha clients found; using default (no-op) client as default");
-          return ignored -> CaptchaClient.noop();
-        });
-
-    spamFilter.map(SpamFilter::getReportedMessageListener).ifPresent(reportMessageManager::addListener);
-    spamFilter.map(SpamFilter::getMessageDeliveryListener).ifPresent(messageSender::addMessageDeliveryListener);
+    final SpamChecker spamChecker = new AbuseSpamChecker(abuseClient);
+    final ChallengeConstraintChecker challengeConstraintChecker = new AbuseChallengeConstraintChecker(abuseClient);
+    final RegistrationFraudChecker registrationFraudChecker = new AbuseRegistrationFraudChecker(abuseClient);
+    final RegistrationRecoveryChecker registrationRecoveryChecker = new AbuseRegistrationRecoveryChecker(abuseClient);
 
     final HttpClient shortCodeRetrieverHttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2)
         .connectTimeout(Duration.ofSeconds(10)).build();
     final ShortCodeExpander shortCodeRetriever = new ShortCodeExpander(shortCodeRetrieverHttpClient, config.getShortCodeRetrieverConfiguration().baseUrl());
-    final CaptchaChecker captchaChecker = new CaptchaChecker(shortCodeRetriever, captchaClientSupplier, dynamicConfigurationManager);
+    final CaptchaChecker captchaChecker = new CaptchaChecker(shortCodeRetriever, ignored -> CaptchaClient.unavailable(),
+        dynamicConfigurationManager);
 
-    final RegistrationCaptchaManager registrationCaptchaManager = new RegistrationCaptchaManager(captchaChecker);
 
     final RateLimitChallengeManager rateLimitChallengeManager = new RateLimitChallengeManager(pushChallengeManager,
-        captchaChecker, rateLimiters, spamFilter.map(SpamFilter::getRateLimitChallengeListener).stream().toList());
-
-    spamFilter.ifPresent(filter -> {
-      environment.lifecycle().manage(filter);
-      log.info("Registered spam filter: {}", filter.getClass().getName());
-    });
+        captchaChecker, rateLimiters, List.of());
 
     final RemoteDeprecationFilter remoteDeprecationFilter =
         new RemoteDeprecationFilter(accountsManager, accountAuthenticator, dynamicConfigurationManager);
@@ -1143,20 +999,16 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
             new CallingGrpcService(cloudflareTurnCredentialsManager, rateLimiters),
             new CredentialsGrpcService(accountsManager, certificateGenerator, zkAuthOperations, callingGenericZkSecretParams, rateLimiters, Clock.systemUTC(), ExternalServiceDefinitions.createExternalServiceList(config, Clock.systemUTC())),
             new KeysGrpcService(accountsManager, keysManager, rateLimiters),
-            new ProfileGrpcService(clock, accountsManager, profilesManager, asnInfoProviderSupplier, dynamicConfigurationManager, config.getBadges(), profileCdnPolicyGenerator, chatGenericZkSecretParams, profileBadgeConverter, rateLimiters),
+            new ProfileGrpcService(clock, accountsManager, profilesManager, profileCdnPolicyGenerator,
+                chatGenericZkSecretParams, rateLimiters),
             new MessagesGrpcService(accountsManager, reportMessageManager, phoneNumberIdentifiers, rateLimiters, messageSender, messageByteLimitCardinalityEstimator, spamChecker, messageDispatcher, Clock.systemUTC()),
             new BackupsGrpcService(accountsManager, backupAuthManager, backupMetrics),
             new DevicesGrpcService(accountsManager),
             new AttachmentsGrpcService(experimentEnrollmentManager, rateLimiters, gcsAttachmentGenerator,
                 tusAttachmentGenerator, stickerPolicyGenerator,
                 config.getAttachments().maxAttachmentUploadSizeInBytes(), Clock.systemUTC()),
-            new PaymentsGrpcService(currencyManager),
             new ChallengeGrpcService(accountsManager, rateLimitChallengeManager, challengeConstraintChecker),
-            new DonationsGrpcService(clock, zkReceiptOperations, redeemedReceiptsManager, accountsManager, config.getBadges(), ReceiptCredentialPresentation::new, donationPermitsManager, rateLimiters),
-            new RemoteConfigurationGrpcService(remoteConfigsManager, profileBadgeConverter,
-                config.getBadges().getBadges().stream()
-                    .map(BadgeConfiguration::getId)
-                    .toList()))
+            new RemoteConfigurationGrpcService(remoteConfigsManager))
         .map(bindableService -> ServerInterceptors.intercept(bindableService,
             // Note: interceptors run in the reverse order they are added; the remote deprecation filter
             // depends on the user-agent context so it has to come first here!
@@ -1175,19 +1027,11 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
             new CallQualitySurveyGrpcService(callQualitySurveyManager, rateLimiters),
             new KeysAnonymousGrpcService(accountsManager, keysManager, groupZkSecretParams, Clock.systemUTC()),
             new KeyTransparencyGrpcService(rateLimiters, keyTransparencyServiceClient),
-            new LoginPurchaseGrpcService(loginPurchaseManager, dynamicConfigurationManager),
-            new ProfileAnonymousGrpcService(accountsManager, profilesManager, profileBadgeConverter, profileCdnPolicyGenerator, chatGenericZkSecretParams, groupZkSecretParams, rateLimiters, clock),
+            new ProfileAnonymousGrpcService(accountsManager, profilesManager, profileCdnPolicyGenerator,
+                chatGenericZkSecretParams, groupZkSecretParams, rateLimiters, clock),
             new MessagesAnonymousGrpcService(accountsManager, rateLimiters, messageSender, groupSendTokenUtil, messageByteLimitCardinalityEstimator, spamChecker, Clock.systemUTC()),
             new BackupsAnonymousGrpcService(backupManager, backupMetrics, config.getAttachments().maxAttachmentUploadSizeInBytes(), config.getAttachments().maxMessageBackupUploadSizeInBytes()),
-            new CredentialsAnonymousGrpcService(accountsManager, ExternalServiceDefinitions.SVR.generatorFactory().apply(config, Clock.systemUTC()), rateLimiters),
-            new SubscriptionsGrpcService(clock, config.getSubscription(), subscriptionManager, donationPermitsManager,
-                stripeManager, braintreeManager, googlePlayBillingManager, appleAppStoreManager, bankMandateTranslator),
-            new ProductConfigurationGrpcService(config.getSubscription(), config.getOneTimeDonations(),
-                config.getLoginPurchase(), List.of(stripeManager, braintreeManager),
-                config.getBackupConfiguration().maxTotalMediaSize()),
-            new OneTimeDonationsGrpcService(config.getOneTimeDonations(), stripeManager, braintreeManager,
-                payPalDonationsTranslator, oneTimeDonationsManager, issuedReceiptsManager,
-                zkReceiptOperations, clock, rateLimiters, donationPermitsManager))
+            new CredentialsAnonymousGrpcService(accountsManager, ExternalServiceDefinitions.SVR.generatorFactory().apply(config, Clock.systemUTC()), rateLimiters))
         .map(bindableService -> ServerInterceptors.intercept(bindableService,
             // Note: interceptors run in the reverse order they are added; the remote deprecation filter
             // depends on the user-agent context so it has to come first here!
@@ -1316,36 +1160,24 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
         new DeviceCheckController(clock, accountsManager, backupAuthManager, appleDeviceCheckManager, rateLimiters,
             config.getDeviceCheck().backupRedemptionDuration()),
         new DirectoryV2Controller(directoryV2CredentialsGenerator),
-        new DonationController(clock, zkReceiptOperations, redeemedReceiptsManager, accountsManager, config.getBadges(),
-            ReceiptCredentialPresentation::new, donationPermitsManager, rateLimiters),
         new KeysController(rateLimiters, keysManager, accountsManager, groupZkSecretParams, Clock.systemUTC()),
         new KeyTransparencyController(keyTransparencyServiceClient),
         new MessageController(rateLimiters, messageByteLimitCardinalityEstimator, messageSender, accountsManager,
             phoneNumberIdentifiers, reportMessageManager, groupZkSecretParams, spamChecker, Clock.systemUTC()),
-        new PaymentsController(currencyManager, paymentsCredentialsGenerator),
-        new ProfileController(clock, rateLimiters, accountsManager, profilesManager, asnInfoProviderSupplier,
-            dynamicConfigurationManager, profileBadgeConverter, config.getBadges(), profileCdnPolicyGenerator,
+        new ProfileController(clock, rateLimiters, accountsManager, profilesManager, profileCdnPolicyGenerator,
             groupZkSecretParams, zkProfileOperations, batchIdentityCheckExecutor),
         new ProvisioningController(rateLimiters, provisioningManager),
         new RegistrationController(accountsManager, phoneVerificationTokenManager, registrationLockVerificationManager,
-            rateLimiters, registrationFraudChecker, ReceiptCredentialPresentation::new, zkReceiptOperations, clock, dynamicConfigurationManager),
+            rateLimiters, registrationFraudChecker, clock, dynamicConfigurationManager),
+        new SamOsRegistrationController(samOsRegistrationClient, accountsManager),
         new RemoteConfigController(remoteConfigsManager),
         new SecureStorageController(storageCredentialsGenerator),
         new SecureValueRecovery2Controller(svr2CredentialsGenerator, accountsManager),
         new StickerController(rateLimiters, stickerPolicyGenerator, Clock.systemUTC()),
         new VerificationController(registrationServiceClient, new VerificationSessionManager(verificationSessions),
-            pushNotificationManager, registrationCaptchaManager, phoneNumberRecoveryPasswordsManager,
+            pushNotificationManager, phoneNumberRecoveryPasswordsManager,
             phoneNumberIdentifiers, rateLimiters, accountsManager, carrierDataProvider, registrationFraudChecker,
-            dynamicConfigurationManager, clock),
-        new SubscriptionController(clock, config.getSubscription(), config.getOneTimeDonations(),
-            config.getLoginPurchase(), subscriptionManager, stripeManager, braintreeManager, googlePlayBillingManager,
-            appleAppStoreManager,
-            profileBadgeConverter, bankMandateTranslator, donationPermitsManager,
-            config.getBackupConfiguration().maxTotalMediaSize()),
-        new OneTimeDonationController(clock, config.getOneTimeDonations(), stripeManager, braintreeManager,
-            payPalDonationsTranslator, zkReceiptOperations, issuedReceiptsManager, oneTimeDonationsManager,
-            donationPermitsManager),
-        new LoginPurchaseController(loginPurchaseManager, dynamicConfigurationManager)
+            dynamicConfigurationManager, clock)
     );
 
     for (Object controller : commonControllers) {
@@ -1415,7 +1247,6 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
         new NonNormalizedPhoneNumberExceptionMapper(),
         new ObsoletePhoneNumberFormatExceptionMapper(),
         new RegistrationServiceSenderExceptionMapper(),
-        new PurchaseExceptionMapper(),
         new BackupExceptionMapper(),
         new JsonMappingExceptionMapper(),
         new RegistrationLockFailureExceptionMapper(),

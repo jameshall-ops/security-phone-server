@@ -893,6 +893,44 @@ class AccountsManagerTest {
   }
 
   @Test
+  void testCreateGovernedNumberlessAccountUsesSamOsAciWithoutPhoneData()
+      throws AccountAlreadyExistsException, AccountCreationConditionException {
+    final UUID samOsAci = UUID.randomUUID();
+    final AccountAttributes attributes = new AccountAttributes(false, 1, null, null, null, false, null,
+        TestRandomUtil.nextBytes(32));
+    final ECKeyPair aciKeyPair = ECKeyPair.generate();
+    final DeviceSpec deviceSpec = new DeviceSpec(
+        attributes.getName(),
+        "password",
+        null,
+        attributes.getCapabilities(),
+        new DeviceIdentityInfo(attributes.getRegistrationId(), KeysHelper.signedECPreKey(1, aciKeyPair),
+            KeysHelper.signedKEMPreKey(3, aciKeyPair)),
+        Optional.empty(),
+        attributes.getFetchesMessages(),
+        Optional.empty(),
+        Optional.empty());
+
+    final Account createdAccount = accountsManager.createGovernedNumberless(
+        samOsAci,
+        attributes,
+        new IdentityKey(aciKeyPair.getPublicKey()),
+        deviceSpec,
+        "SecurityPhone-Test");
+
+    assertEquals(samOsAci, createdAccount.getAccountIdentifier());
+    assertTrue(createdAccount.getNumber().isEmpty());
+    assertTrue(createdAccount.getPhoneNumberIdentifier().isEmpty());
+    assertTrue(createdAccount.getPhoneNumberIdentityKey().isEmpty());
+    assertTrue(createdAccount.getAuthCredentialSalt().isPresent());
+    verify(accounts).createGovernedNumberless(
+        argThat(account -> samOsAci.equals(account.getAccountIdentifier()) && account.getNumber().isEmpty()), any());
+    verify(keysManager).buildWriteItemsForNewDevice(
+        eq(samOsAci), eq(Optional.empty()), eq(Device.PRIMARY_ID), notNull(), eq(Optional.empty()), notNull(),
+        eq(Optional.empty()));
+  }
+
+  @Test
   void testCreateSandboxAccount() throws Exception {
     CLOCK.pin(Instant.now());
     final UUID sandboxAci = UUID.randomUUID();

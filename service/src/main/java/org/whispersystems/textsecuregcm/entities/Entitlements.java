@@ -16,6 +16,11 @@ public record Entitlements(
     @Schema(description = "If present, the backup level set via /v1/archives/redeem-receipt")
     @Nullable BackupEntitlement backup) {
 
+  public Entitlements {
+    // Security Phone does not expose legacy consumer badge state. Keep the field for wire compatibility only.
+    badges = List.of();
+  }
+
   public record BadgeEntitlement(
       @Schema(description = "The badge id")
       String id,

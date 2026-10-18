@@ -8,10 +8,6 @@ package org.whispersystems.textsecuregcm.grpc;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.net.InetAddresses;
@@ -19,9 +15,7 @@ import com.google.protobuf.ByteString;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -35,34 +29,20 @@ import org.signal.chat.remoteconfiguration.GetBadgesResponse;
 import org.signal.chat.remoteconfiguration.GetConfigurationRequest;
 import org.signal.chat.remoteconfiguration.GetConfigurationResponse;
 import org.signal.chat.remoteconfiguration.RemoteConfigurationGrpc;
-import org.whispersystems.textsecuregcm.badges.BadgeTranslator;
-import org.whispersystems.textsecuregcm.entities.Badge;
-import org.whispersystems.textsecuregcm.entities.BadgeSvg;
 import org.whispersystems.textsecuregcm.storage.RemoteConfigsManager;
 
 class RemoteConfigurationGrpcServiceTest extends
     SimpleBaseGrpcTest<RemoteConfigurationGrpcService, RemoteConfigurationGrpc.RemoteConfigurationBlockingStub> {
 
-  private static final List<String> BADGE_IDS = List.of("B1", "B2");
-
   @Mock
   private RemoteConfigsManager remoteConfigsManager;
-
-  @Mock
-  private BadgeTranslator badgeTranslator;
 
   @Override
   protected RemoteConfigurationGrpcService createServiceBeforeEachTest() {
     getMockRequestAttributesInterceptor().setRequestAttributes(
         new RequestAttributes(InetAddresses.forString("127.0.0.1"), null, null));
 
-    when(badgeTranslator.resolveLocale(any())).thenReturn(Locale.US);
-    when(badgeTranslator.translate(any(), eq("B1"))).thenReturn(new Badge("B1", "cat1", "name1", "desc1",
-        List.of("l", "m", "h", "x", "xx", "xxx"), "SVG", List.of(new BadgeSvg("sl", "sd"))));
-    when(badgeTranslator.translate(any(), eq("B2"))).thenReturn(new Badge("B2", "cat2", "name2", "desc2",
-        List.of("l", "m", "h", "x", "xx", "xxx"), "SVG", List.of(new BadgeSvg("sl", "sd"))));
-
-    return new RemoteConfigurationGrpcService(remoteConfigsManager, badgeTranslator, BADGE_IDS);
+    return new RemoteConfigurationGrpcService(remoteConfigsManager);
   }
 
   @Test
@@ -181,10 +161,7 @@ class RemoteConfigurationGrpcServiceTest extends
     assertTrue(response.hasTaggedBadges());
     final Map<String, org.signal.chat.common.Badge> badges =
         response.getTaggedBadges().getBadges().getBadgesMap();
-    assertEquals(Set.of("B1", "B2"), badges.keySet());
-    assertEquals("B1", badges.get("B1").getId());
-    assertEquals("cat1", badges.get("B1").getCategory());
-    assertEquals("B2", badges.get("B2").getId());
+    assertTrue(badges.isEmpty());
   }
 
   @Test
@@ -209,36 +186,4 @@ class RemoteConfigurationGrpcServiceTest extends
     assertTrue(response.hasTaggedBadges());
   }
 
-  @Test
-  void getBadgesComputesOncePerLocale() {
-    final RequestAttributes frAttributes =
-        new RequestAttributes(InetAddresses.forString("127.0.0.1"), null, "fr-fr");
-    final List<Locale> frLocales = List.of(Locale.FRANCE);
-    final RequestAttributes caAttributes =
-        new RequestAttributes(InetAddresses.forString("127.0.0.1"), null, "en-ca");
-    final List<Locale> caLocales = List.of(Locale.CANADA);
-
-    when(badgeTranslator.resolveLocale(frLocales)).thenReturn(Locale.FRANCE);
-    when(badgeTranslator.resolveLocale(caLocales)).thenReturn(Locale.CANADA);
-
-    // return slightly different values based on the language so the locales configurations have different etags
-    when(badgeTranslator.translate(eq(frLocales), eq("B1")))
-        .thenReturn(new Badge("B1", "cat1", "name1", "desc1", List.of("l", "m", "h", "x", "xx", "xxx"), "SVG", List.of(new BadgeSvg("sl", "sd"))));
-    when(badgeTranslator.translate(eq(caLocales), eq("B1")))
-        .thenReturn(new Badge("B1", "dog1", "name1", "desc1", List.of("l", "m", "h", "x", "xx", "xxx"), "SVG", List.of(new BadgeSvg("sl", "sd"))));
-
-    getMockRequestAttributesInterceptor().setRequestAttributes(caAttributes);
-    final GetBadgesResponse caResponse = authenticatedServiceStub()
-        .getBadges(GetBadgesRequest.newBuilder().build());
-    final GetBadgesResponse caResponseCached = authenticatedServiceStub()
-        .getBadges(GetBadgesRequest.newBuilder().setEtag(caResponse.getTaggedBadges().getEtag()).build());
-    assertTrue(caResponseCached.getEtagMatched());
-    verify(badgeTranslator, times(1)).translate(eq(caLocales), eq("B1"));
-
-    getMockRequestAttributesInterceptor().setRequestAttributes(frAttributes);
-    final GetBadgesResponse frResponse = authenticatedServiceStub()
-        .getBadges(GetBadgesRequest.newBuilder().setEtag(caResponse.getTaggedBadges().getEtag()).build());
-    assertFalse(frResponse.hasEtagMatched());
-    verify(badgeTranslator, times(1)).translate(eq(frLocales), eq("B1"));
-  }
 }

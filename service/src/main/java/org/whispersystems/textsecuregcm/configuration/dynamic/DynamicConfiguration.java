@@ -35,10 +35,6 @@ public class DynamicConfiguration {
 
   @JsonProperty
   @Valid
-  private DynamicPaymentsConfiguration payments = DynamicPaymentsConfiguration.DEFAULT;
-
-  @JsonProperty
-  @Valid
   private DynamicCaptchaConfiguration captcha = new DynamicCaptchaConfiguration();
 
   @JsonProperty
@@ -85,10 +81,6 @@ public class DynamicConfiguration {
   @Valid
   private DynamicTurnConfiguration turn = new DynamicTurnConfiguration();
 
-  @JsonProperty
-  @Valid
-  private DynamicLoginPurchaseConfiguration loginPurchase = new DynamicLoginPurchaseConfiguration(false);
-
   public Optional<DynamicExperimentEnrollmentConfiguration> getExperimentEnrollmentConfiguration(
       final String experimentName) {
     return Optional.ofNullable(experiments.get(experimentName));
@@ -105,10 +97,6 @@ public class DynamicConfiguration {
 
   public DynamicRemoteDeprecationConfiguration getRemoteDeprecationConfiguration() {
     return remoteDeprecation;
-  }
-
-  public DynamicPaymentsConfiguration getPaymentsConfiguration() {
-    return payments;
   }
 
   public DynamicCaptchaConfiguration getCaptchaConfiguration() {
@@ -159,7 +147,4 @@ public class DynamicConfiguration {
     return turn;
   }
 
-  public DynamicLoginPurchaseConfiguration getLoginPurchaseConfiguration() {
-    return loginPurchase;
-  }
 }

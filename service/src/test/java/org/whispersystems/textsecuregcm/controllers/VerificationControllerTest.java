@@ -50,6 +50,7 @@ import org.apache.http.HttpStatus;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.test.grizzly.GrizzlyWebTestContainerFactory;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -132,7 +133,7 @@ class VerificationControllerTest {
       .setTestContainerFactory(new GrizzlyWebTestContainerFactory())
       .addResource(
           new VerificationController(registrationServiceClient, verificationSessionManager, pushNotificationManager,
-              registrationCaptchaManager, phoneNumberRecoveryPasswordsManager, phoneNumberIdentifiers, rateLimiters, accountsManager,
+              phoneNumberRecoveryPasswordsManager, phoneNumberIdentifiers, rateLimiters, accountsManager,
               carrierDataProvider, RegistrationFraudChecker.noop(), dynamicConfigurationManager, clock))
       .build();
 
@@ -295,16 +296,16 @@ class VerificationControllerTest {
       final VerificationSessionResponse verificationSessionResponse = response.readEntity(
           VerificationSessionResponse.class);
       assertEquals(expectedRequestedInformation, verificationSessionResponse.requestedInformation());
-      assertFalse(verificationSessionResponse.allowedToRequestCode());
+      assertEquals(expectedRequestedInformation.isEmpty(), verificationSessionResponse.allowedToRequestCode());
       assertFalse(verificationSessionResponse.verified());
     }
   }
 
   static Stream<Arguments> createSessionSuccess() {
     return Stream.of(
-        Arguments.of(null, null, List.of(VerificationSession.Information.CAPTCHA)),
+        Arguments.of(null, null, List.of()),
         Arguments.of("token", "fcm",
-            List.of(VerificationSession.Information.PUSH_CHALLENGE, VerificationSession.Information.CAPTCHA))
+            List.of(VerificationSession.Information.PUSH_CHALLENGE))
     );
   }
 
@@ -404,6 +405,7 @@ class VerificationControllerTest {
   }
 
   @Test
+  @Disabled("Captcha verification is intentionally removed; patchSessionCaptchaIsGone covers the replacement contract")
   void patchSessionCaptchaRateLimited() throws Exception {
     final String encodedSessionId = encodeSessionId(SESSION_ID);
     final RegistrationServiceSession registrationServiceSession = new RegistrationServiceSession(SESSION_ID, NUMBER,
@@ -493,6 +495,7 @@ class VerificationControllerTest {
   }
 
   @Test
+  @Disabled("Captcha verification is intentionally removed; patchSessionCaptchaIsGone covers the replacement contract")
   void patchSessionCaptchaInvalid() throws Exception {
     final String encodedSessionId = encodeSessionId(SESSION_ID);
     final RegistrationServiceSession registrationServiceSession = new RegistrationServiceSession(SESSION_ID, NUMBER,
@@ -618,7 +621,7 @@ class VerificationControllerTest {
         .thenReturn(Optional.of(new VerificationSession(encodedSessionId,
                 "challenge",
                 null,
-                List.of(VerificationSession.Information.PUSH_CHALLENGE, VerificationSession.Information.CAPTCHA),
+                List.of(VerificationSession.Information.PUSH_CHALLENGE),
                 Collections.emptyList(), null, null, false, clock.millis(), clock.millis(),
                 registrationServiceSession.expiration())));
 
@@ -648,7 +651,7 @@ class VerificationControllerTest {
   }
 
   @Test
-  void patchSessionCaptchaSuccess() throws Exception {
+  void patchSessionCaptchaIsGone() throws Exception {
     final String encodedSessionId = encodeSessionId(SESSION_ID);
     final RegistrationServiceSession registrationServiceSession = new RegistrationServiceSession(SESSION_ID, NUMBER,
         false, null, null, null,
@@ -660,36 +663,18 @@ class VerificationControllerTest {
                 Collections.emptyList(), null, null, false, clock.millis(), clock.millis(),
                 registrationServiceSession.expiration())));
 
-    when(registrationCaptchaManager.assessCaptcha(any(), any(), any(), any()))
-        .thenReturn(Optional.of(AssessmentResult.alwaysValid()));
-
-
     final Invocation.Builder request = resources.getJerseyTest()
         .target("/v1/verification/session/" + encodedSessionId)
         .request()
         .header(HttpHeaders.X_FORWARDED_FOR, "127.0.0.1");
     try (Response response = request.method("PATCH", Entity.json(updateSessionJson("captcha", null, null, null)))) {
-      assertEquals(HttpStatus.SC_OK, response.getStatus());
-
-      final ArgumentCaptor<VerificationSession> verificationSessionArgumentCaptor = ArgumentCaptor.forClass(
-          VerificationSession.class);
-
-      verify(verificationSessionManager).update(verificationSessionArgumentCaptor.capture());
-
-      final VerificationSession updatedSession = verificationSessionArgumentCaptor.getValue();
-      assertEquals(List.of(VerificationSession.Information.CAPTCHA),
-          updatedSession.submittedInformation());
-      assertTrue(updatedSession.requestedInformation().isEmpty());
-
-      final VerificationSessionResponse verificationSessionResponse = response.readEntity(
-          VerificationSessionResponse.class);
-
-      assertTrue(verificationSessionResponse.allowedToRequestCode());
-      assertTrue(verificationSessionResponse.requestedInformation().isEmpty());
+      assertEquals(HttpStatus.SC_GONE, response.getStatus());
+      verify(verificationSessionManager, never()).update(any());
     }
   }
 
   @Test
+  @Disabled("Combined push/captcha verification is intentionally removed; push-only behavior remains covered")
   void patchSessionPushAndCaptchaSuccess() throws Exception {
     final String encodedSessionId = encodeSessionId(SESSION_ID);
     final RegistrationServiceSession registrationServiceSession = new RegistrationServiceSession(SESSION_ID, NUMBER,
@@ -736,6 +721,7 @@ class VerificationControllerTest {
   }
 
   @Test
+  @Disabled("Captcha verification is intentionally removed; patchSessionCaptchaIsGone covers the replacement contract")
   void patchSessionTokenUpdatedCaptchaError() throws Exception {
     final String encodedSessionId = encodeSessionId(SESSION_ID);
     final RegistrationServiceSession registrationServiceSession = new RegistrationServiceSession(SESSION_ID, NUMBER,

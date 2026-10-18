@@ -86,7 +86,6 @@ import org.whispersystems.textsecuregcm.auth.RegistrationLockVerificationManager
 import org.whispersystems.textsecuregcm.auth.UnverifiedRegistrationSessionException;
 import org.whispersystems.textsecuregcm.auth.webauthn.AuthenticationCeremonyParameters;
 import org.whispersystems.textsecuregcm.configuration.dynamic.DynamicConfiguration;
-import org.whispersystems.textsecuregcm.configuration.dynamic.DynamicLoginPurchaseConfiguration;
 import org.whispersystems.textsecuregcm.entities.AccountAttributes;
 import org.whispersystems.textsecuregcm.entities.AccountCreationResponse;
 import org.whispersystems.textsecuregcm.entities.AccountIdentityResponse;
@@ -146,9 +145,6 @@ class RegistrationControllerTest {
 
   private static final Clock CLOCK = TestClock.pinned(Instant.now());
 
-  private static final DynamicLoginPurchaseConfiguration ENABLED = new DynamicLoginPurchaseConfiguration(true);
-  private static final DynamicLoginPurchaseConfiguration DISABLED = new DynamicLoginPurchaseConfiguration(false);
-
   @SuppressWarnings("unchecked")
   private static final DynamicConfigurationManager<DynamicConfiguration> DYNAMIC_CONFIGURATION_MANAGER =
       mock(DynamicConfigurationManager.class);
@@ -163,8 +159,8 @@ class RegistrationControllerTest {
       .setMapper(SystemMapper.jsonMapper())
       .setTestContainerFactory(new GrizzlyWebTestContainerFactory())
       .addResource(new RegistrationController(accountsManager, phoneVerificationTokenManager,
-          registrationLockVerificationManager, rateLimiters, registrationFraudChecker, ReceiptCredentialPresentation::new,
-          new ServerZkReceiptOperations(ReceiptCredentialTestUtil.RECEIPT_PARAMS), CLOCK, DYNAMIC_CONFIGURATION_MANAGER))
+          registrationLockVerificationManager, rateLimiters, registrationFraudChecker, CLOCK,
+          DYNAMIC_CONFIGURATION_MANAGER))
       .build();
 
   @BeforeEach
@@ -186,7 +182,6 @@ class RegistrationControllerTest {
     reset(DYNAMIC_CONFIGURATION_MANAGER, DYNAMIC_CONFIGURATION);
 
     when(DYNAMIC_CONFIGURATION_MANAGER.getConfiguration()).thenReturn(DYNAMIC_CONFIGURATION);
-    when(DYNAMIC_CONFIGURATION.getLoginPurchaseConfiguration()).thenReturn(ENABLED);
 
     reset(registrationFraudChecker);
     reset(phoneVerificationTokenManager);
@@ -759,7 +754,7 @@ class RegistrationControllerTest {
   }
 
   @Test
-  void registerAccountWithoutNumber() throws Exception {
+  void registerAccountWithoutNumberIsGone() throws Exception {
     final ECKeyPair aciIdentityKeyPair = ECKeyPair.generate();
     final IdentityKey aciIdentityKey = new IdentityKey(aciIdentityKeyPair.getPublicKey());
     final ECSignedPreKey aciSignedPreKey = KeysHelper.signedECPreKey(1, aciIdentityKeyPair);
@@ -806,32 +801,9 @@ class RegistrationControllerTest {
         .header(HttpHeaders.AUTHORIZATION, AuthHelper.getProvisioningAuthHeader(NUMBER, PASSWORD));
 
     try (Response response = request.post(Entity.json(requestToJson(registrationRequest)))) {
-      assertEquals(200, response.getStatus());
-
-      final AccountCreationResponse creationResponse = response.readEntity(AccountCreationResponse.class);
-      assertEquals(accountIdentifier, creationResponse.identityResponse().uuid());
-      assertEquals(Optional.empty(), creationResponse.identityResponse().number());
-      assertEquals(Optional.empty(), creationResponse.identityResponse().pni());
-      assertFalse(creationResponse.reregistration());
+      assertEquals(410, response.getStatus());
     }
-
-    verify(accountsManager).create(
-        argThat(attributes -> accountAttributesEqual(attributes, accountAttributes)),
-        eq(aciIdentityKey),
-        argThat(presentation ->
-            Arrays.equals(presentation.serialize(), receiptCredentialPresentation.serialize())),
-        eq(new DeviceSpec(
-            deviceName,
-            PASSWORD,
-            null,
-            deviceCapabilities,
-            new DeviceIdentityInfo(registrationId, aciSignedPreKey, aciPqLastResortPreKey),
-            Optional.empty(),
-            true,
-            Optional.empty(),
-            Optional.empty())),
-        any());
-
+    verifyNoInteractions(accountsManager);
     verifyNoInteractions(phoneVerificationTokenManager);
   }
 
@@ -854,7 +826,6 @@ class RegistrationControllerTest {
     final ReceiptCredentialPresentation receiptCredentialPresentation =
         receiptPresentation(CLOCK.instant().plus(Duration.ofDays(30)), ReceiptLevel.LOGIN.getValue());
 
-    when(DYNAMIC_CONFIGURATION.getLoginPurchaseConfiguration()).thenReturn(DISABLED);
     final RegistrationRequest registrationRequest = new RegistrationRequest(null,
         new byte[0],
         receiptCredentialPresentation.serialize(),
@@ -877,7 +848,7 @@ class RegistrationControllerTest {
         .header(HttpHeaders.AUTHORIZATION, AuthHelper.getProvisioningAuthHeader(NUMBER, PASSWORD));
 
     try (Response response = request.post(Entity.json(requestToJson(registrationRequest)))) {
-      assertEquals(400, response.getStatus());
+      assertEquals(410, response.getStatus());
     }
 
     verifyNoInteractions(accountsManager);
@@ -929,7 +900,7 @@ class RegistrationControllerTest {
         .header(HttpHeaders.AUTHORIZATION, AuthHelper.getProvisioningAuthHeader(NUMBER, PASSWORD));
 
     try (Response response = request.post(Entity.json(requestToJson(registrationRequest)))) {
-      assertEquals(expectedStatusCode, response.getStatus());
+      assertEquals(410, response.getStatus());
     }
 
     verifyNoInteractions(phoneVerificationTokenManager);
@@ -1071,7 +1042,7 @@ class RegistrationControllerTest {
         .header(HttpHeaders.AUTHORIZATION, AuthHelper.getProvisioningAuthHeader(NUMBER, PASSWORD));
 
     try (Response response = request.post(Entity.json(requestToJson(registrationRequest)))) {
-      assertEquals(422, response.getStatus());
+      assertEquals(410, response.getStatus());
     }
 
     verifyNoInteractions(accountsManager);
@@ -1161,8 +1132,8 @@ class RegistrationControllerTest {
         .header(HttpHeaders.AUTHORIZATION, AuthHelper.getProvisioningAuthHeader(NUMBER, PASSWORD));
 
     try (Response response = request.post(Entity.json(requestToJson(registrationRequest)))) {
-      assertEquals(401, response.getStatus());
-      verify(accountsManager).create(any(), any(), any(), any(), any());
+      assertEquals(410, response.getStatus());
+      verifyNoInteractions(accountsManager);
     }
   }
 
@@ -1449,7 +1420,7 @@ class RegistrationControllerTest {
                     Optional.of(pniPqLastResortPreKey),
                     Optional.empty(),
                     Optional.empty())),
-            400),
+            410),
 
         Arguments.argumentSet("Missing PNI identity key",
             existingAccount,
