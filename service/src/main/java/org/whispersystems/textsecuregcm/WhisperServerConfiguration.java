@@ -244,6 +244,12 @@ public class WhisperServerConfiguration extends Configuration {
   @Valid
   @NotNull
   @JsonProperty
+  private SamOsRegistrationServiceConfiguration samOsRegistrationService =
+      new SamOsRegistrationServiceConfiguration(null, 443, null, null);
+
+  @Valid
+  @NotNull
+  @JsonProperty
   private RegistrationServiceClientFactory registrationService;
 
   @Valid
@@ -486,6 +492,10 @@ public class WhisperServerConfiguration extends Configuration {
 
   public AbuseServiceConfiguration getAbuseServiceConfiguration() {
     return abuseService;
+  }
+
+  public SamOsRegistrationServiceConfiguration getSamOsRegistrationServiceConfiguration() {
+    return samOsRegistrationService;
   }
 
   public RegistrationServiceClientFactory getRegistrationServiceConfiguration() {

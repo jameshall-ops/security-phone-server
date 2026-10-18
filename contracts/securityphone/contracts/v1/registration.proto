@@ -17,20 +17,32 @@ message BeginRegistrationRequest {
   string subject = 1;
   string tier = 2;
   string device_attestation = 3;
+  string organization_id = 4;
+  string user_id = 5;
+  string authorization_code = 6;
+  string code_verifier = 7;
+  string redirect_uri = 8;
 }
 
 message BeginRegistrationResponse {
   string registration_id = 1;
   google.protobuf.Timestamp expires_at = 2;
+  string registration_grant = 3;
 }
 
 message CompleteRegistrationRequest {
   string registration_id = 1;
   bytes identity_key = 2;
   bytes signed_pre_key = 3;
+  string registration_grant = 4;
+  string mfa_method = 5;
+  string mfa_assertion = 6;
 }
 
 message CompleteRegistrationResponse {
   string account_id = 1;
   google.protobuf.Timestamp registered_at = 2;
+  string aci = 3;
+  string pni = 4;
+  uint32 device_slot = 5;
 }

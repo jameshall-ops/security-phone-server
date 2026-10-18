@@ -276,6 +276,14 @@ abuseService:
   target: ${ABUSE_SERVICE_TARGET:-}
   timeout: PT2S
 
+samOsRegistrationService:
+  # The internal-only SAM OS registration boundary. When omitted, registration fails closed with HTTP 503.
+  host: ${SAM_OS_REGISTRATION_HOST:-}
+  port: ${SAM_OS_REGISTRATION_PORT:-443}
+  timeout: PT5S
+  # Production must resolve this value from the secret bundle to the reviewed registration CA.
+  trustedCaCertificate: ${SAM_OS_REGISTRATION_CA_PEM:-}
+
 registrationService:
   host: registration.example.com
   port: 443

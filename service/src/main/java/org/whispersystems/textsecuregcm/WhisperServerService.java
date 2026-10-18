@@ -128,6 +128,7 @@ import org.whispersystems.textsecuregcm.controllers.ProfileController;
 import org.whispersystems.textsecuregcm.controllers.ProvisioningController;
 import org.whispersystems.textsecuregcm.controllers.RegistrationController;
 import org.whispersystems.textsecuregcm.controllers.RemoteConfigController;
+import org.whispersystems.textsecuregcm.controllers.SamOsRegistrationController;
 import org.whispersystems.textsecuregcm.controllers.SecureStorageController;
 import org.whispersystems.textsecuregcm.controllers.SecureValueRecovery2Controller;
 import org.whispersystems.textsecuregcm.controllers.StickerController;
@@ -221,6 +222,7 @@ import org.whispersystems.textsecuregcm.redis.ConnectionEventLogger;
 import org.whispersystems.textsecuregcm.redis.FaultTolerantRedisClient;
 import org.whispersystems.textsecuregcm.redis.FaultTolerantRedisClusterClient;
 import org.whispersystems.textsecuregcm.registration.RegistrationServiceClient;
+import org.whispersystems.textsecuregcm.registration.SamOsRegistrationClient;
 import org.whispersystems.textsecuregcm.s3.PostPolicyGenerator;
 import org.whispersystems.textsecuregcm.s3.S3MonitoringSupplier;
 import org.whispersystems.textsecuregcm.securestorage.SecureStorageClient;
@@ -717,6 +719,22 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
 
     RegistrationServiceClient registrationServiceClient = config.getRegistrationServiceConfiguration()
         .build(environment, registrationIdentityTokenRefreshExecutor);
+    final Optional<SamOsRegistrationClient> samOsRegistrationClient;
+    if (config.getSamOsRegistrationServiceConfiguration().configured()) {
+      try {
+        final SamOsRegistrationClient configuredClient = new SamOsRegistrationClient(
+            config.getSamOsRegistrationServiceConfiguration().host(),
+            config.getSamOsRegistrationServiceConfiguration().port(),
+            config.getSamOsRegistrationServiceConfiguration().trustedCaCertificate(),
+            config.getSamOsRegistrationServiceConfiguration().timeout());
+        environment.lifecycle().manage(configuredClient);
+        samOsRegistrationClient = Optional.of(configuredClient);
+      } catch (final IOException e) {
+        throw new IllegalStateException("Could not configure the SAM OS registration boundary", e);
+      }
+    } else {
+      samOsRegistrationClient = Optional.empty();
+    }
     KeyTransparencyServiceClient keyTransparencyServiceClient = new KeyTransparencyServiceClient(
         config.getKeyTransparencyServiceConfiguration().host(),
         config.getKeyTransparencyServiceConfiguration().port(),
@@ -1151,6 +1169,7 @@ public class WhisperServerService extends Application<WhisperServerConfiguration
         new ProvisioningController(rateLimiters, provisioningManager),
         new RegistrationController(accountsManager, phoneVerificationTokenManager, registrationLockVerificationManager,
             rateLimiters, registrationFraudChecker, clock, dynamicConfigurationManager),
+        new SamOsRegistrationController(samOsRegistrationClient, accountsManager),
         new RemoteConfigController(remoteConfigsManager),
         new SecureStorageController(storageCredentialsGenerator),
         new SecureValueRecovery2Controller(svr2CredentialsGenerator, accountsManager),

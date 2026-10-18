@@ -293,9 +293,10 @@ public class AccountsManager extends RedisPubSubAdapter<String, String> implemen
   private static class UncheckedWebAuthnMismatchException extends NoStackTraceRuntimeException {
   }
 
-  private sealed interface CreationDetails permits NumberDetails, NumberlessDetails {}
+  private sealed interface CreationDetails permits NumberDetails, NumberlessDetails, GovernedNumberlessDetails {}
   private record NumberDetails(boolean recentlyDeleted, String e164, UUID pni, IdentityKey pniIdentityKey) implements CreationDetails {}
   private record NumberlessDetails(ReceiptCredentialPresentation receiptCredentialPresentation, byte[] authCredentialSalt) implements CreationDetails {}
+  private record GovernedNumberlessDetails(byte[] authCredentialSalt) implements CreationDetails {}
 
   public AccountsManager(final Accounts accounts,
       final PhoneNumberIdentifiers phoneNumberIdentifiers,
@@ -433,6 +434,33 @@ public class AccountsManager extends RedisPubSubAdapter<String, String> implemen
     } catch (final RuntimeException e) {
       logger.error("Unexpected exception while creating account", e);
       throw e;
+    } finally {
+      sample.stop(Metrics.timer(CREATE_TIMER_NAME, HAS_NUMBER_TAG_NAME, "false"));
+    }
+  }
+
+  /**
+   * Creates a numberless account after SAM OS has consumed a short-lived governed registration grant and allocated the
+   * account identifier. This method deliberately accepts no phone number or payment receipt.
+   */
+  public Account createGovernedNumberless(final UUID aci,
+      final AccountAttributes accountAttributes,
+      final IdentityKey aciIdentityKey,
+      final DeviceSpec primaryDeviceSpec,
+      @Nullable final String userAgent) {
+
+    accountAttributes.recoveryPassword().filter(password -> password.length > 0)
+        .orElseThrow(
+            () -> new IllegalArgumentException("recovery password is required for accounts without phone numbers"));
+    accountAttributes.setDiscoverableByPhoneNumber(false);
+
+    final GovernedNumberlessDetails details = new GovernedNumberlessDetails(generateAuthCredentialSalt());
+    final List<TransactWriteItem> additionalWriteItems = keysWriteItems(aci, Optional.empty(), primaryDeviceSpec);
+    final Timer.Sample sample = Timer.start();
+    try {
+      return create(aci, details, accountAttributes, aciIdentityKey, primaryDeviceSpec, additionalWriteItems, userAgent);
+    } catch (final ReceiptAlreadyRedeemedException | AccountCreationConditionException e) {
+      throw new IllegalStateException("unexpected governed numberless account creation condition", e);
     } finally {
       sample.stop(Metrics.timer(CREATE_TIMER_NAME, HAS_NUMBER_TAG_NAME, "false"));
     }
@@ -576,6 +604,12 @@ public class AccountsManager extends RedisPubSubAdapter<String, String> implemen
               numberless.receiptCredentialPresentation(),
               accountAttributes.recoveryPassword().get(),
               additionalWriteItems);
+        }
+        case GovernedNumberlessDetails governed -> {
+          accountCreationType = AccountCreationType.NEW;
+          account.setAuthCredentialSalt(governed.authCredentialSalt());
+          assert accountAttributes.recoveryPassword().isPresent();
+          accounts.createGovernedNumberless(account, additionalWriteItems);
         }
       }
     } catch (final AccountAlreadyExistsException e) {
