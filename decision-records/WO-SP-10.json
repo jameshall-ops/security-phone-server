@@ -5,9 +5,9 @@
   "test_gate_command": "./mvnw -pl service -am test",
   "test_run_hash": "ae4cc1ab5946300dc54ed8cb7b541d1e5eba513b08b6528829f122f0d1253ebb",
   "local_test_gate_result": "5451 tests; 0 failures; 264 environment errors because Docker, Redis and the FoundationDB native library are unavailable on the local macOS host",
-  "pull_request_service_ci_run": "https://github.com/jameshall-ops/security-phone-server/actions/runs/39167367687",
-  "service_ci_log_hash": "a6f2e41663157a22da8a3b2984849c59bb658fe5b5191dc89c9fc2cad0ffeed6",
-  "service_ci_result": "passed; hosted runner completed Redis, FoundationDB, compilation and the full Maven test gate",
+  "pull_request_service_ci_run": "https://github.com/jameshall-ops/security-phone-server/actions/runs/39171259599",
+  "service_ci_log_hash": "1b6503e6a98e2e60de1b1b58099c0dd8a55a18455165f5f02f6a9396cb6e68cf",
+  "service_ci_result": "passed after review repairs; hosted runner completed Redis, FoundationDB, compilation and the full Maven test gate",
   "change_specific_test_command": "./mvnw -pl service -am -Dtest=ForkPruningTest,CaptchaClientTest,WhisperServerServiceAuthTest,ChallengeGrpcServiceTest,ChallengeControllerTest,RegistrationControllerTest,VerificationControllerTest,CredentialsGrpcServiceTest,ProfileGrpcServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
   "change_specific_test_run_hash": "2dbed00466a5a18974581a8f84edaad28321520fdd956f77784b81fdbd93cd25",
   "change_specific_test_result": "290 tests; 0 failures; 0 errors; 6 skipped",
@@ -19,7 +19,7 @@
   "boundary_check_run_hash": "43076ea7a0f6a855a3dd7c9d665c75cdcc17c1aac333f33b69994064914be8b4",
   "reviewer": "Dr. James Hall, Program Owner",
   "human_gate_decision": "approved",
-  "human_gate_evidence": "Program Owner confirmed WO-SP-10 on 2026-10-18 after hosted Service CI and AGPL boundary checks passed; no Message*, Keys* or Account* implementation file has a substantive change",
+  "human_gate_evidence": "Program Owner confirmed WO-SP-10 on 2026-10-18 after hosted Service CI and AGPL boundary checks passed. No production file under controllers/Message*, controllers/Keys* or controllers/Account* has a substantive change; the review follow-up changed only AccountsGrpcService, Entitlements, AbuseSpamChecker and their tests.",
   "open_items": [],
   "closed_at": "2026-10-18"
 }
