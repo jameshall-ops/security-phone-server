@@ -5,6 +5,9 @@
   "test_gate_command": "./mvnw -pl service -am test",
   "test_run_hash": "ae4cc1ab5946300dc54ed8cb7b541d1e5eba513b08b6528829f122f0d1253ebb",
   "local_test_gate_result": "5451 tests; 0 failures; 264 environment errors because Docker, Redis and the FoundationDB native library are unavailable on the local macOS host",
+  "pull_request_service_ci_run": "https://github.com/jameshall-ops/security-phone-server/actions/runs/39167367687",
+  "service_ci_log_hash": "a6f2e41663157a22da8a3b2984849c59bb658fe5b5191dc89c9fc2cad0ffeed6",
+  "service_ci_result": "passed; hosted runner completed Redis, FoundationDB, compilation and the full Maven test gate",
   "change_specific_test_command": "./mvnw -pl service -am -Dtest=ForkPruningTest,CaptchaClientTest,WhisperServerServiceAuthTest,ChallengeGrpcServiceTest,ChallengeControllerTest,RegistrationControllerTest,VerificationControllerTest,CredentialsGrpcServiceTest,ProfileGrpcServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
   "change_specific_test_run_hash": "2dbed00466a5a18974581a8f84edaad28321520fdd956f77784b81fdbd93cd25",
   "change_specific_test_result": "290 tests; 0 failures; 0 errors; 6 skipped",
@@ -17,7 +20,6 @@
   "reviewer": "pending",
   "human_gate_decision": "pending",
   "open_items": [
-    "Require the GitHub Service CI gate, which supplies Docker, Redis and FoundationDB, to pass before human review",
     "Reviewer must confirm that no Message*, Keys* or Account* implementation file has a substantive change",
     "Do not merge until the WO-SP-10 human gate is approved"
   ]
