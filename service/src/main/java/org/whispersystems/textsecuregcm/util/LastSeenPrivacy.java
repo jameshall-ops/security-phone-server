@@ -27,7 +27,9 @@ public final class LastSeenPrivacy {
     final long bucketSeconds = BUCKET.toSeconds();
     final long accountOffsetSeconds =
         Util.ensureNonNegativeLong(accountIdentifier.getLeastSignificantBits()) % bucketSeconds;
-    final long currentEpochSeconds = clock.instant().getEpochSecond();
+    // Use Clock#millis rather than Clock#instant so existing storage tests and integrations that provide a
+    // millisecond-only clock remain compatible. The persisted bucket is second-aligned in either case.
+    final long currentEpochSeconds = Math.floorDiv(clock.millis(), 1_000L);
     final long bucketNumber = Math.floorDiv(currentEpochSeconds - accountOffsetSeconds, bucketSeconds);
     final long bucketStartSeconds = Math.addExact(
         Math.multiplyExact(bucketNumber, bucketSeconds), accountOffsetSeconds);
