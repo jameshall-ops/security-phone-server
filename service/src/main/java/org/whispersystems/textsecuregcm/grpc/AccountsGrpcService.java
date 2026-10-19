@@ -542,8 +542,7 @@ public class AccountsGrpcService extends SimpleAccountsGrpc.AccountsImplBase {
                 new AccountDataReportResponse.DeviceDataReport(
                     device.getId(),
                     Instant.ofEpochMilli(device.getLastSeen()),
-                    Instant.ofEpochMilli(device.getCreated()),
-                    device.getUserAgent())).toList()));
+                    Instant.ofEpochMilli(device.getCreated()))).toList()));
 
     return GetAccountDataReportResponse.newBuilder()
         .setJson(SystemMapper.jsonMapper().writeValueAsString(report))

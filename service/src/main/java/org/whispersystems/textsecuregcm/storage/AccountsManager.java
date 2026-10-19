@@ -537,7 +537,7 @@ public class AccountsManager extends RedisPubSubAdapter<String, String> implemen
 
     account.setAccountIdentifier(aci);
     account.setIdentityKey(aciIdentityKey);
-    account.addDevice(primaryDeviceSpec.toDevice(Device.PRIMARY_ID, clock, aciIdentityKey));
+    account.addDevice(primaryDeviceSpec.toDevice(aci, Device.PRIMARY_ID, clock, aciIdentityKey));
     account.setUnidentifiedAccessKey(accountAttributes.getUnidentifiedAccessKey());
     account.setUnrestrictedUnidentifiedAccess(accountAttributes.isUnrestrictedUnidentifiedAccess());
     account.setDiscoverableByPhoneNumber(accountAttributes.isDiscoverableByPhoneNumber());
@@ -649,7 +649,8 @@ public class AccountsManager extends RedisPubSubAdapter<String, String> implemen
       }
 
       account.setIdentityKey(aciIdentityKey);
-      account.addDevice(primaryDeviceSpec.toDevice(Device.PRIMARY_ID, clock, aciIdentityKey));
+      account.addDevice(primaryDeviceSpec.toDevice(
+          existingAccount.getAccountIdentifier(), Device.PRIMARY_ID, clock, aciIdentityKey));
       account.setUnidentifiedAccessKey(accountAttributes.getUnidentifiedAccessKey());
       account.setUnrestrictedUnidentifiedAccess(accountAttributes.isUnrestrictedUnidentifiedAccess());
       account.setAccountRecoveryPassword(accountAttributes.recoveryPassword().orElseThrow(() ->
@@ -787,7 +788,8 @@ public class AccountsManager extends RedisPubSubAdapter<String, String> implemen
             messagesManager.clear(account.getAccountIdentifier(), nextDeviceId))
         .join();
 
-    account.addDevice(deviceSpec.toDevice(nextDeviceId, clock, account.getAccountIdentityKey()));
+    account.addDevice(deviceSpec.toDevice(
+        account.getAccountIdentifier(), nextDeviceId, clock, account.getAccountIdentityKey()));
 
     final List<TransactWriteItem> additionalWriteItems = new ArrayList<>(keysManager.buildWriteItemsForNewDevice(
         account.getAccountIdentifier(),

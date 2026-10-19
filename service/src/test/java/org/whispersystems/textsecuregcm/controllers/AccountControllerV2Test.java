@@ -541,8 +541,6 @@ class AccountControllerV2Test {
       // all devices should be present
       structuredResponse.data().devices().forEach(deviceDataReport -> {
         assertTrue(deviceIds.remove(deviceDataReport.id()));
-        assertEquals(account.getDevice(deviceDataReport.id()).orElseThrow().getUserAgent(),
-            deviceDataReport.userAgent());
       });
       assertTrue(deviceIds.isEmpty());
 

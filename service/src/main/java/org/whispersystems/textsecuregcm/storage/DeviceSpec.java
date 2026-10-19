@@ -5,12 +5,13 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.signal.libsignal.protocol.IdentityKey;
 import org.whispersystems.textsecuregcm.auth.SaltedTokenHash;
 import org.whispersystems.textsecuregcm.entities.ApnRegistrationId;
 import org.whispersystems.textsecuregcm.entities.GcmRegistrationId;
 import org.whispersystems.textsecuregcm.util.EncryptDeviceCreationTimestampUtil;
-import org.whispersystems.textsecuregcm.util.Util;
+import org.whispersystems.textsecuregcm.util.LastSeenPrivacy;
 
 public record DeviceSpec(
     byte[] deviceNameCiphertext,
@@ -23,7 +24,8 @@ public record DeviceSpec(
     Optional<ApnRegistrationId> apnRegistrationId,
     Optional<GcmRegistrationId> gcmRegistrationId) {
 
-  public Device toDevice(final byte deviceId, final Clock clock, final IdentityKey aciIdentityKey) {
+  public Device toDevice(final UUID accountIdentifier, final byte deviceId, final Clock clock,
+      final IdentityKey aciIdentityKey) {
     final long created = clock.millis();
 
     final Device device = new Device();
@@ -37,8 +39,7 @@ public record DeviceSpec(
     device.setCreated(created);
     device.setCreatedAtCiphertext(
         EncryptDeviceCreationTimestampUtil.encrypt(created, aciIdentityKey, deviceId, aciInfo.registrationId()));
-    device.setLastSeen(Util.todayInMillis());
-    device.setUserAgent(signalAgent());
+    device.setLastSeen(LastSeenPrivacy.bucketStartMillis(accountIdentifier, clock));
 
     apnRegistrationId().ifPresent(apnRegistrationId -> device.setApnId(apnRegistrationId.apnRegistrationId()));
     gcmRegistrationId().ifPresent(gcmRegistrationId -> device.setGcmId(gcmRegistrationId.gcmRegistrationId()));

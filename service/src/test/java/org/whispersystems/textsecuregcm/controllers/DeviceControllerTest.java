@@ -248,7 +248,8 @@ class DeviceControllerTest {
       final Account a = accountsManager.getByAccountIdentifier(invocation.getArgument(0)).orElseThrow();
       final DeviceSpec deviceSpec = invocation.getArgument(1);
 
-      return new Pair<>(a, deviceSpec.toDevice(NEXT_DEVICE_ID, testClock, aciIdentityKey));
+      return new Pair<>(a, deviceSpec.toDevice(
+          a.getAccountIdentifier(), NEXT_DEVICE_ID, testClock, aciIdentityKey));
     });
 
     when(asyncCommands.set(any(), any(), any())).thenReturn(MockRedisFuture.completedFuture(null));
@@ -274,7 +275,8 @@ class DeviceControllerTest {
     final ArgumentCaptor<DeviceSpec> deviceSpecCaptor = ArgumentCaptor.forClass(DeviceSpec.class);
     verify(accountsManager).addDevice(eq(AuthHelper.VALID_UUID), deviceSpecCaptor.capture(), any());
 
-    final Device device = deviceSpecCaptor.getValue().toDevice(NEXT_DEVICE_ID, testClock, aciIdentityKey);
+    final Device device = deviceSpecCaptor.getValue().toDevice(
+        AuthHelper.VALID_UUID, NEXT_DEVICE_ID, testClock, aciIdentityKey);
 
     assertEquals(fetchesMessages, device.getFetchesMessages());
 
@@ -912,7 +914,8 @@ class DeviceControllerTest {
       final Account a = accountsManager.getByAccountIdentifier(invocation.getArgument(0)).orElseThrow();
       final DeviceSpec deviceSpec = invocation.getArgument(1);
 
-      return new Pair<>(a, deviceSpec.toDevice(NEXT_DEVICE_ID, testClock, aciIdentityKey));
+      return new Pair<>(a, deviceSpec.toDevice(
+          a.getAccountIdentifier(), NEXT_DEVICE_ID, testClock, aciIdentityKey));
     });
 
     when(accountsManager.checkDeviceLinkingToken(anyString())).thenReturn(Optional.of(AuthHelper.VALID_UUID));

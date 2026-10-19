@@ -63,8 +63,8 @@ public class AccountsTestHelper {
               buildTestAccountForDataReport(UUID.randomUUID(), exampleNumber1,
                   true, true,
                   Collections.emptyList(),
-                  List.of(new DeviceData(Device.PRIMARY_ID, account1Device1LastSeen, account1Device1Created, null),
-                      new DeviceData((byte) 2, account1Device2LastSeen, account1Device2Created, "OWP"))),
+                  List.of(new DeviceData(Device.PRIMARY_ID, account1Device1LastSeen, account1Device1Created),
+                      new DeviceData((byte) 2, account1Device2LastSeen, account1Device2Created))),
               String.format("""
                       # Account
                       Phone number: %s
@@ -76,11 +76,9 @@ public class AccountsTestHelper {
                       - ID: 1
                         Created: 2022-11-24T20:52:22Z
                         Last seen: %s
-                        User-agent: null
                       - ID: 2
                         Created: 2023-03-18T15:58:42Z
                         Last seen: 2023-03-15T00:00:00Z
-                        User-agent: OWP
                       """,
                   exampleNumber1,
                   account1Device1LastSeen)
@@ -89,7 +87,7 @@ public class AccountsTestHelper {
               buildTestAccountForDataReport(UUID.randomUUID(), account2PhoneNumber,
                   false, true,
                   List.of(new AccountBadge("badge_a", badgeAExpiration, true)),
-                  List.of(new DeviceData(Device.PRIMARY_ID, account2Device1LastSeen, account2Device1Created, "OWI"))),
+                  List.of(new DeviceData(Device.PRIMARY_ID, account2Device1LastSeen, account2Device1Created))),
               String.format("""
                       # Account
                       Phone number: %s
@@ -104,7 +102,6 @@ public class AccountsTestHelper {
                       - ID: 1
                         Created: 2022-07-29T19:30:01Z
                         Last seen: %s
-                        User-agent: OWI
                       """, account2PhoneNumber,
                   badgeAExpiration,
                   account2Device1LastSeen)
@@ -115,7 +112,7 @@ public class AccountsTestHelper {
                   List.of(
                       new AccountBadge("badge_b", badgeBExpiration, true),
                       new AccountBadge("badge_c", badgeCExpiration, false)),
-                  List.of(new DeviceData(Device.PRIMARY_ID, account3Device1LastSeen, account3Device1Created, "OWA"))),
+                  List.of(new DeviceData(Device.PRIMARY_ID, account3Device1LastSeen, account3Device1Created))),
               String.format("""
                       # Account
                       Phone number: %s
@@ -133,7 +130,6 @@ public class AccountsTestHelper {
                       - ID: 1
                         Created: 2021-12-19T14:18:07Z
                         Last seen: %s
-                        User-agent: OWA
                       """, account3PhoneNumber,
                   badgeBExpiration,
                   badgeCExpiration,
@@ -143,8 +139,8 @@ public class AccountsTestHelper {
               buildTestAccountForDataReport(UUID.randomUUID(), null,
                   true, true,
                   Collections.emptyList(),
-                  List.of(new DeviceData(Device.PRIMARY_ID, account1Device1LastSeen, account1Device1Created, null),
-                      new DeviceData((byte) 2, account1Device2LastSeen, account1Device2Created, "OWP"))),
+                  List.of(new DeviceData(Device.PRIMARY_ID, account1Device1LastSeen, account1Device1Created),
+                      new DeviceData((byte) 2, account1Device2LastSeen, account1Device2Created))),
               String.format("""
                       # Account
                       Allow sealed sender from anyone: true
@@ -154,11 +150,9 @@ public class AccountsTestHelper {
                       - ID: 1
                         Created: 2022-11-24T20:52:22Z
                         Last seen: %s
-                        User-agent: null
                       - ID: 2
                         Created: 2023-03-18T15:58:42Z
                         Last seen: 2023-03-15T00:00:00Z
-                        User-agent: OWP
                       """,
                   account1Device1LastSeen)
           )
@@ -199,7 +193,6 @@ public class AccountsTestHelper {
         device.setFetchesMessages(true);
         device.setLastSeen(deviceData.lastSeen().toEpochMilli());
         device.setCreated(deviceData.created().toEpochMilli());
-        device.setUserAgent(deviceData.userAgent());
         account.addDevice(device);
       });
 
@@ -210,7 +203,7 @@ public class AccountsTestHelper {
       return PhoneNumberUtil.getInstance().format(phoneNumber, PhoneNumberUtil.PhoneNumberFormat.E164);
     }
 
-    public record DeviceData(byte id, Instant lastSeen, Instant created, @Nullable String userAgent) {
+    public record DeviceData(byte id, Instant lastSeen, Instant created) {
     }
   }
 

@@ -5,10 +5,10 @@
 
 package org.whispersystems.textsecuregcm.metrics;
 
+import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
 import org.whispersystems.textsecuregcm.storage.Device;
 import org.whispersystems.textsecuregcm.util.ua.ClientPlatform;
-import java.util.Optional;
 
 public class DevicePlatformUtil {
 
@@ -33,12 +33,6 @@ public class DevicePlatformUtil {
       clientPlatform = Optional.empty();
     }
 
-    return clientPlatform.or(() -> Optional.ofNullable(
-        switch (device.getUserAgent()) {
-          case "OWA" -> ClientPlatform.ANDROID;
-          case "OWI", "OWP" -> ClientPlatform.IOS;
-          case "OWD" -> ClientPlatform.DESKTOP;
-          case null, default -> null;
-        }));
+    return clientPlatform;
   }
 }

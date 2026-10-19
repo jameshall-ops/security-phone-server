@@ -1,6 +1,12 @@
 Signal-Server
 =================
 
+Security Phone privacy profile
+------------------------------
+
+The governed account-record inventory and WO-SP-13 retention rules are documented in
+[`docs/security-phone/ACCOUNT-RECORD.md`](docs/security-phone/ACCOUNT-RECORD.md).
+
 Documentation
 -------------
 

@@ -599,7 +599,6 @@ public class AccountCreationDeletionIntegrationTest {
 
     final Device reclaimedPrimaryDevice = reclaimedAccount.getPrimaryDevice();
     assertArrayEquals(primaryDeviceSpec.deviceNameCiphertext(), reclaimedPrimaryDevice.getName());
-    assertEquals(primaryDeviceSpec.signalAgent(), reclaimedPrimaryDevice.getUserAgent());
     assertEquals(aciRegistrationId, reclaimedPrimaryDevice.getAccountRegistrationId());
     assertEquals(hasE164 ? Optional.of(pniRegistrationId) : Optional.empty(), reclaimedPrimaryDevice.getPhoneNumberIdentityRegistrationId());
     assertTrue(reclaimedPrimaryDevice.getFetchesMessages());
@@ -887,7 +886,6 @@ public class AccountCreationDeletionIntegrationTest {
     final Device primaryDevice = account.getPrimaryDevice();
 
     assertEquals(number, account.getNumber());
-    assertEquals(signalAgent, primaryDevice.getUserAgent());
     assertEquals(deliveryChannels.fetchesMessages(), primaryDevice.getFetchesMessages());
     assertEquals(registrationId, primaryDevice.getAccountRegistrationId());
     assertEquals(pniRegistrationId, primaryDevice.getPhoneNumberIdentityRegistrationId());
