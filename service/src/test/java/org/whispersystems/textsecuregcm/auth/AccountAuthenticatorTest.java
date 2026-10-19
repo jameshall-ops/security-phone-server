@@ -14,10 +14,12 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.dropwizard.auth.basic.BasicCredentials;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -138,6 +140,29 @@ class AccountAuthenticatorTest {
     verify(accountsManager).updateDeviceLastSeen(eq(oldAccount.getAccountIdentifier()), eq(device), anyLong());
 
     assertThat(device.getLastSeen()).isEqualTo(today);
+  }
+
+  @Test
+  void testLastSeenChangesAtMostOncePerSevenDays() {
+    final UUID accountIdentifier = new UUID(0, 0);
+    final long weekStart = Instant.parse("2026-10-15T00:00:00Z").toEpochMilli();
+    final Device device = generateTestDevice(weekStart);
+    final Account account = AccountsHelper.generateTestAccount(
+        "+14088675312", accountIdentifier, UUID.randomUUID(), List.of(device), null);
+    AccountsHelper.setupMockGet(accountsManager, account);
+
+    clock.pin(Instant.ofEpochMilli(weekStart).plus(Duration.ofDays(1)));
+    accountAuthenticator.updateLastSeen(account, device);
+
+    clock.pin(Instant.ofEpochMilli(weekStart).plus(Duration.ofDays(7)).minusMillis(1));
+    accountAuthenticator.updateLastSeen(account, device);
+
+    clock.pin(Instant.ofEpochMilli(weekStart).plus(Duration.ofDays(7)));
+    accountAuthenticator.updateLastSeen(account, device);
+
+    verify(accountsManager, times(1)).updateDeviceLastSeen(
+        eq(accountIdentifier), eq(device), eq(weekStart + Duration.ofDays(7).toMillis()));
+    assertThat(device.getLastSeen()).isEqualTo(weekStart + Duration.ofDays(7).toMillis());
   }
 
   @Test
