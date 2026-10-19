@@ -17,6 +17,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Enforce process boundary
         run: sh tests/boundary-check.test.sh
+      - name: Verify governed audit evidence contract
+        run: sh tests/audit-evidence-contract.test.sh
       - name: Install Buf
         uses: bufbuild/buf-setup-action@a47c93e0b1648d5651a065437926377d060baa99 # v1.50.0
         with:
