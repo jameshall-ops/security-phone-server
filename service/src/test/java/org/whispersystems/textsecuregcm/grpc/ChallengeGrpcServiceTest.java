@@ -10,7 +10,6 @@ import static org.mockito.Mockito.when;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -22,7 +21,6 @@ import org.signal.chat.challenge.AnswerChallengeResponse;
 import org.signal.chat.challenge.ChallengeGrpc;
 import org.signal.chat.challenge.RequestPushChallengeRequest;
 import org.signal.chat.challenge.RequestPushChallengeResponse;
-import org.whispersystems.textsecuregcm.captcha.InvalidCaptchaArgumentException;
 import org.whispersystems.textsecuregcm.controllers.RateLimitExceededException;
 import org.whispersystems.textsecuregcm.limits.RateLimitChallengeManager;
 import org.whispersystems.textsecuregcm.push.NotPushRegisteredException;
@@ -112,41 +110,20 @@ public class ChallengeGrpcServiceTest extends
             .build()));
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  void handleCaptchaChallengeResponse(final boolean captchaSuccess)
-      throws RateLimitExceededException, IOException, InvalidCaptchaArgumentException {
-    when(challengeConstraintChecker.challengeConstraintsGrpc(account)).thenReturn(
-        new ChallengeConstraintChecker.ChallengeConstraints(true, Optional.empty()));
-    when(rateLimitChallengeManager.answerCaptchaChallenge(any(), any(), any(), any(), any())).thenReturn(
-        captchaSuccess);
-    final AnswerChallengeResponse response = authenticatedServiceStub().answerChallenge(
-        AnswerChallengeRequest.newBuilder()
-            .setToken("token")
-            .setCaptcha(AnswerChallengeRequest.AnswerCaptchaChallengeRequest.newBuilder()
-                .setCaptcha("captcha")
-                .build())
-            .build());
-    assertEquals(captchaSuccess, response.getSuccess());
-  }
-
   @Test
-  void handleCaptchaChallengeResponseRateLimitExceeded()
-      throws RateLimitExceededException, IOException, InvalidCaptchaArgumentException {
+  void handleCaptchaChallengeResponseIsUnavailable() throws Exception {
     when(challengeConstraintChecker.challengeConstraintsGrpc(account)).thenReturn(
         new ChallengeConstraintChecker.ChallengeConstraints(true, Optional.empty()));
-    final Duration retryAfter = Duration.ofMinutes(1);
-    doThrow(new RateLimitExceededException(retryAfter)).when(rateLimitChallengeManager)
-        .answerCaptchaChallenge(any(), any(), any(), any(), any());
-
-    //noinspection ResultOfMethodCallIgnored
-    GrpcTestUtils.assertRateLimitExceeded(retryAfter,
+    final StatusRuntimeException exception = assertThrows(StatusRuntimeException.class,
         () -> authenticatedServiceStub().answerChallenge(AnswerChallengeRequest.newBuilder()
             .setToken("token")
             .setCaptcha(AnswerChallengeRequest.AnswerCaptchaChallengeRequest.newBuilder()
                 .setCaptcha("captcha")
                 .build())
             .build()));
+
+    assertEquals(Status.Code.INVALID_ARGUMENT, exception.getStatus().getCode());
+    verify(rateLimitChallengeManager, never()).answerCaptchaChallenge(any(), any(), any(), any(), any());
   }
 
   @Test

@@ -11,13 +11,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import org.signal.chat.common.S3UploadForm;
 import org.signal.chat.errors.FailedPrecondition;
 import org.signal.chat.errors.NotFound;
@@ -40,21 +36,14 @@ import org.signal.libsignal.zkgroup.InvalidInputException;
 import org.signal.libsignal.zkgroup.VerificationFailedException;
 import org.signal.libsignal.zkgroup.avatars.AvatarUploadCredentialRequest;
 import org.signal.libsignal.zkgroup.avatars.AvatarUploadCredentialResponse;
-import org.whispersystems.textsecuregcm.asn.AsnInfoProvider;
 import org.whispersystems.textsecuregcm.auth.grpc.AuthenticatedDevice;
 import org.whispersystems.textsecuregcm.auth.grpc.AuthenticationUtil;
-import org.whispersystems.textsecuregcm.badges.ProfileBadgeConverter;
-import org.whispersystems.textsecuregcm.configuration.BadgeConfiguration;
-import org.whispersystems.textsecuregcm.configuration.BadgesConfiguration;
-import org.whispersystems.textsecuregcm.configuration.dynamic.DynamicConfiguration;
 import org.whispersystems.textsecuregcm.controllers.RateLimitExceededException;
 import org.whispersystems.textsecuregcm.identity.ServiceIdentifier;
 import org.whispersystems.textsecuregcm.limits.RateLimiters;
 import org.whispersystems.textsecuregcm.s3.PostPolicyGenerator;
 import org.whispersystems.textsecuregcm.storage.Account;
-import org.whispersystems.textsecuregcm.storage.AccountBadge;
 import org.whispersystems.textsecuregcm.storage.AccountsManager;
-import org.whispersystems.textsecuregcm.storage.DynamicConfigurationManager;
 import org.whispersystems.textsecuregcm.storage.ProfilesManager;
 import org.whispersystems.textsecuregcm.storage.VersionedProfile;
 import org.whispersystems.textsecuregcm.storage.VersionedProfileV1;
@@ -66,12 +55,8 @@ public class ProfileGrpcService extends SimpleProfileGrpc.ProfileImplBase {
   private final Clock clock;
   private final AccountsManager accountsManager;
   private final ProfilesManager  profilesManager;
-  private final Supplier<AsnInfoProvider> asnInfoProviderSupplier;
-  private final DynamicConfigurationManager<DynamicConfiguration> dynamicConfigurationManager;
-  private final Map<String, BadgeConfiguration> badgeConfigurationMap;
   private final PostPolicyGenerator policyGenerator;
   private final GenericServerSecretParams genericServerSecretParams;
-  private final ProfileBadgeConverter profileBadgeConverter;
   private final RateLimiters rateLimiters;
 
   private record AvatarData(Optional<String> currentAvatar,
@@ -82,23 +67,14 @@ public class ProfileGrpcService extends SimpleProfileGrpc.ProfileImplBase {
       final Clock clock,
       final AccountsManager accountsManager,
       final ProfilesManager profilesManager,
-      final Supplier<AsnInfoProvider> asnInfoProviderSupplier,
-      final DynamicConfigurationManager<DynamicConfiguration> dynamicConfigurationManager,
-      final BadgesConfiguration badgesConfiguration,
       final PostPolicyGenerator policyGenerator,
       final GenericServerSecretParams genericServerSecretParams,
-      final ProfileBadgeConverter profileBadgeConverter,
       final RateLimiters rateLimiters) {
     this.clock = clock;
     this.accountsManager = accountsManager;
     this.profilesManager = profilesManager;
-    this.asnInfoProviderSupplier = asnInfoProviderSupplier;
-    this.dynamicConfigurationManager = dynamicConfigurationManager;
-    this.badgeConfigurationMap = badgesConfiguration.getBadges().stream()
-        .collect(Collectors.toMap(BadgeConfiguration::getId, Function.identity()));
     this.policyGenerator = policyGenerator;
     this.genericServerSecretParams = genericServerSecretParams;
-    this.profileBadgeConverter = profileBadgeConverter;
     this.rateLimiters = rateLimiters;
   }
 
@@ -129,8 +105,7 @@ public class ProfileGrpcService extends SimpleProfileGrpc.ProfileImplBase {
     final Optional<VersionedProfileV1> maybeV1Profile = profilesManager.getV1(
         authenticatedDevice.accountIdentifier(), HexFormat.of().formatHex(version));
 
-    if (!request.getPaymentAddress().isEmpty() &&
-        ProfileHelper.isPaymentAddressUpdateForbidden(account, maybeProfile, maybeV1Profile, RequestAttributesUtil.getRemoteAddress().getHostAddress(), asnInfoProviderSupplier.get(), dynamicConfigurationManager)) {
+    if (!request.getPaymentAddress().isEmpty()) {
 
       return SetProfileResponse.newBuilder()
           .setPaymentsForbiddenInRegion(PaymentsForbiddenInRegion.getDefaultInstance())
@@ -185,12 +160,7 @@ public class ProfileGrpcService extends SimpleProfileGrpc.ProfileImplBase {
     try {
       accountsManager.updateCurrentProfileVersion(account.getAccountIdentifier(), version, expectedCurrentVersion, a -> {
 
-        final List<AccountBadge> updatedBadges = Optional.of(request.getBadgeIdsList())
-            .map(badges -> ProfileHelper.mergeBadgeIdsWithExistingAccountBadges(clock, badgeConfigurationMap, badges,
-                a.getBadges()))
-            .orElseGet(a::getBadges);
-
-        a.setBadges(clock, updatedBadges);
+        // Consumer badge state is intentionally ignored in the Security Phone server.
       });
 
     } catch (final WriteConflictException e) {
@@ -259,7 +229,7 @@ public class ProfileGrpcService extends SimpleProfileGrpc.ProfileImplBase {
         validateRateLimitAndGetAccount(authenticatedDevice.accountIdentifier(), targetIdentifier);
 
     return maybeAccount.flatMap(account -> ProfileGrpcHelper
-            .getProfile(account, profilesManager, profileBadgeConverter, version)
+            .getProfile(account, profilesManager, version)
 
             // If the etag matches, drop the result
             .map(profileResult -> request.getEtag().equals(profileResult.getEtag())
@@ -268,7 +238,7 @@ public class ProfileGrpcService extends SimpleProfileGrpc.ProfileImplBase {
 
             // If we didn't find a v2 profile, try a v1 profile
             .or(() -> ProfileGrpcHelper
-                .getProfileV1(account, profilesManager, profileBadgeConverter, version)
+                .getProfileV1(account, profilesManager, version)
                 .map(v1Result -> GetProfileResponse.newBuilder().setLegacyProfile(v1Result).build())))
         .orElseGet(() -> GetProfileResponse.newBuilder().setNotFound(NotFound.getDefaultInstance()).build());
   }

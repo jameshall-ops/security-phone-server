@@ -90,7 +90,6 @@ import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialRequestContext;
 import org.signal.libsignal.zkgroup.profiles.ServerZkProfileOperations;
 import org.whispersystems.textsecuregcm.auth.UnidentifiedAccessChecksum;
 import org.whispersystems.textsecuregcm.auth.UnidentifiedAccessUtil;
-import org.whispersystems.textsecuregcm.badges.ProfileBadgeConverter;
 import org.whispersystems.textsecuregcm.controllers.RateLimitExceededException;
 import org.whispersystems.textsecuregcm.identity.AciServiceIdentifier;
 import org.whispersystems.textsecuregcm.limits.RateLimiter;
@@ -123,9 +122,6 @@ public class ProfileAnonymousGrpcServiceTest extends SimpleBaseGrpcTest<ProfileA
   private ProfilesManager profilesManager;
 
   @Mock
-  private ProfileBadgeConverter profileBadgeConverter;
-
-  @Mock
   private RateLimiter profileAvatarBytesRateLimiter;
 
   private ServerZkProfileOperations zkProfileOperations;
@@ -150,7 +146,6 @@ public class ProfileAnonymousGrpcServiceTest extends SimpleBaseGrpcTest<ProfileA
     return new ProfileAnonymousGrpcService(
         accountsManager,
         profilesManager,
-        profileBadgeConverter,
         new PostPolicyGenerator("us-west-1", "profile-bucket", "accessKey", "accessSecret"),
         genericServerSecretParams,
         rateLimiters,
@@ -171,7 +166,7 @@ public class ProfileAnonymousGrpcServiceTest extends SimpleBaseGrpcTest<ProfileA
     final ECKeyPair identityKeyPair = ECKeyPair.generate();
     final IdentityKey identityKey = new IdentityKey(identityKeyPair.getPublicKey());
     final byte[] unidentifiedAccessKey = TestRandomUtil.nextBytes(UnidentifiedAccessUtil.UNIDENTIFIED_ACCESS_KEY_LENGTH);
-    final List<String> badgeIds = List.of("TEST-BADGE");
+    final List<String> badgeIds = List.of();
 
     final byte[] name = TestRandomUtil.nextBytes(81);
     final byte[] emoji = TestRandomUtil.nextBytes(60);
@@ -188,7 +183,6 @@ public class ProfileAnonymousGrpcServiceTest extends SimpleBaseGrpcTest<ProfileA
     when(account.getUnidentifiedAccessKey()).thenReturn(Optional.of(unidentifiedAccessKey));
     when(account.getBadges()).thenReturn(Collections.emptyList());
 
-    when(profileBadgeConverter.visibleBadgeIds(anyList())).thenReturn(badgeIds);
     when(accountsManager.getByServiceIdentifier(any())).thenReturn(Optional.of(account));
     when(profilesManager.getV1(any(), any())).thenReturn(profile);
 
@@ -250,7 +244,7 @@ public class ProfileAnonymousGrpcServiceTest extends SimpleBaseGrpcTest<ProfileA
     final ECKeyPair identityKeyPair = ECKeyPair.generate();
     final IdentityKey identityKey = new IdentityKey(identityKeyPair.getPublicKey());
     final byte[] unidentifiedAccessKey = TestRandomUtil.nextBytes(UnidentifiedAccessUtil.UNIDENTIFIED_ACCESS_KEY_LENGTH);
-    final List<String> badgeIds = List.of("TEST-BADGE");
+    final List<String> badgeIds = List.of();
 
     final byte[] data = TestRandomUtil.nextBytes(128);
     final byte[] paymentAddress = TestRandomUtil.nextBytes(582);
@@ -265,7 +259,6 @@ public class ProfileAnonymousGrpcServiceTest extends SimpleBaseGrpcTest<ProfileA
     when(account.getAccountIdentityKey()).thenReturn(identityKey);
     when(account.getBadges()).thenReturn(Collections.emptyList());
 
-    when(profileBadgeConverter.visibleBadgeIds(anyList())).thenReturn(badgeIds);
     when(accountsManager.getByServiceIdentifier(any())).thenReturn(Optional.of(account));
     when(profilesManager.get(any(), any())).thenReturn(Optional.of(v2Profile));
     when(profilesManager.getV1(any(), any())).thenReturn(Optional.empty());
@@ -306,7 +299,7 @@ public class ProfileAnonymousGrpcServiceTest extends SimpleBaseGrpcTest<ProfileA
     final IdentityKey identityKey = new IdentityKey(identityKeyPair.getPublicKey());
     final byte[] unidentifiedAccessKey = TestRandomUtil.nextBytes(
         UnidentifiedAccessUtil.UNIDENTIFIED_ACCESS_KEY_LENGTH);
-    final List<String> badgeIds = List.of("TEST-BADGE");
+    final List<String> badgeIds = List.of();
 
     final byte[] data = TestRandomUtil.nextBytes(128);
     final byte[] paymentAddress = TestRandomUtil.nextBytes(582);
@@ -321,7 +314,6 @@ public class ProfileAnonymousGrpcServiceTest extends SimpleBaseGrpcTest<ProfileA
     when(account.getAccountIdentityKey()).thenReturn(identityKey);
     when(account.getBadges()).thenReturn(Collections.emptyList());
 
-    when(profileBadgeConverter.visibleBadgeIds(anyList())).thenReturn(badgeIds);
     when(accountsManager.getByServiceIdentifier(any())).thenReturn(Optional.of(account));
     when(profilesManager.get(any(), any())).thenReturn(Optional.of(v2Profile));
     when(profilesManager.getV1(any(), any())).thenReturn(Optional.empty());

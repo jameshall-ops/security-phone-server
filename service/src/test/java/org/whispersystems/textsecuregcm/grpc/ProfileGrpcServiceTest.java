@@ -51,6 +51,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -86,15 +87,8 @@ import org.signal.libsignal.zkgroup.avatars.AvatarUploadCredentialRequest;
 import org.signal.libsignal.zkgroup.avatars.AvatarUploadCredentialRequestContext;
 import org.signal.libsignal.zkgroup.avatars.AvatarUploadCredentialResponse;
 import org.signal.libsignal.zkgroup.profiles.ProfileKey;
-import org.whispersystems.textsecuregcm.asn.AsnInfoProvider;
 import org.whispersystems.textsecuregcm.auth.UnidentifiedAccessChecksum;
 import org.whispersystems.textsecuregcm.auth.UnidentifiedAccessUtil;
-import org.whispersystems.textsecuregcm.badges.ProfileBadgeConverter;
-import org.whispersystems.textsecuregcm.configuration.BadgeConfiguration;
-import org.whispersystems.textsecuregcm.configuration.BadgesConfiguration;
-import org.whispersystems.textsecuregcm.configuration.dynamic.DynamicConfiguration;
-import org.whispersystems.textsecuregcm.configuration.dynamic.DynamicPaymentsConfiguration;
-import org.whispersystems.textsecuregcm.entities.BadgeSvg;
 import org.whispersystems.textsecuregcm.identity.AciServiceIdentifier;
 import org.whispersystems.textsecuregcm.limits.RateLimiter;
 import org.whispersystems.textsecuregcm.limits.RateLimiters;
@@ -103,12 +97,10 @@ import org.whispersystems.textsecuregcm.storage.Account;
 import org.whispersystems.textsecuregcm.storage.AccountBadge;
 import org.whispersystems.textsecuregcm.storage.AccountsManager;
 import org.whispersystems.textsecuregcm.storage.DeviceCapability;
-import org.whispersystems.textsecuregcm.storage.DynamicConfigurationManager;
 import org.whispersystems.textsecuregcm.storage.ProfilesManager;
 import org.whispersystems.textsecuregcm.storage.VersionedProfile;
 import org.whispersystems.textsecuregcm.storage.VersionedProfileV1;
 import org.whispersystems.textsecuregcm.storage.WriteConflictException;
-import org.whispersystems.textsecuregcm.purchases.ReceiptLevel;
 import org.whispersystems.textsecuregcm.tests.util.AuthHelper;
 import org.whispersystems.textsecuregcm.tests.util.ProfileTestHelper;
 import org.whispersystems.textsecuregcm.util.MockUtils;
@@ -138,9 +130,6 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
   private ProfilesManager profilesManager;
 
   @Mock
-  private DynamicPaymentsConfiguration dynamicPaymentsConfiguration;
-
-  @Mock
   private VersionedProfileV1 profile;
 
   @Mock
@@ -149,32 +138,13 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
   @Mock
   private RateLimiter rateLimiter;
 
-  @Mock
-  private ProfileBadgeConverter profileBadgeConverter;
-
   private MutableClock clock;
 
   @Override
   protected ProfileGrpcService createServiceBeforeEachTest() {
     clock = new MutableClock(Clock.fixed(Instant.ofEpochSecond(42), ZoneId.of("Etc/UTC")));
 
-    @SuppressWarnings("unchecked") final DynamicConfigurationManager<DynamicConfiguration> dynamicConfigurationManager = mock(DynamicConfigurationManager.class);
-    final DynamicConfiguration dynamicConfiguration = mock(DynamicConfiguration.class);
     final PostPolicyGenerator policyGenerator = new PostPolicyGenerator("us-west-1", "profile-bucket", "accessKey", "accessSecret");
-    final BadgesConfiguration badgesConfiguration = new BadgesConfiguration(
-        List.of(new BadgeConfiguration(
-            "TEST",
-            "other",
-            List.of("l", "m", "h", "x", "xx", "xxx"),
-            "SVG",
-            List.of(
-                new BadgeSvg("sl", "sd"),
-                new BadgeSvg("ml", "md"),
-                new BadgeSvg("ll", "ld")
-            )
-        )),
-        Map.of(ReceiptLevel.ONE_TIME_DONATION, "TEST1", ReceiptLevel.ONE_TIME_GIFT_DONATION, "TEST2", ReceiptLevel.SUBSCRIPTION_HIGH, "TEST3")
-    );
     final RateLimiters rateLimiters = mock(RateLimiters.class);
     final String phoneNumber = PhoneNumberUtil.getInstance().format(
         PhoneNumberUtil.getInstance().getExampleNumber("US"),
@@ -185,9 +155,6 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
         "en-us"));
 
     when(rateLimiters.getProfileLimiter()).thenReturn(rateLimiter);
-
-    when(dynamicConfigurationManager.getConfiguration()).thenReturn(dynamicConfiguration);
-    when(dynamicConfiguration.getPaymentsConfiguration()).thenReturn(dynamicPaymentsConfiguration);
 
     when(account.getAccountIdentifier()).thenReturn(AUTHENTICATED_ACI);
     when(account.getNumber()).thenReturn(Optional.of(phoneNumber));
@@ -200,23 +167,14 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
     when(accountsManager.getByAccountIdentifier(AUTHENTICATED_ACI)).thenReturn(Optional.of(account));
     when(accountsManager.getByServiceIdentifier(new AciServiceIdentifier(AUTHENTICATED_ACI))).thenReturn(Optional.of(account));
 
-    when(dynamicConfigurationManager.getConfiguration()).thenReturn(dynamicConfiguration);
-    when(dynamicConfiguration.getPaymentsConfiguration()).thenReturn(dynamicPaymentsConfiguration);
-    when(dynamicPaymentsConfiguration.disallowedPrefixes()).thenReturn(Collections.emptyList());
-    when(dynamicPaymentsConfiguration.disallowedAsnRegions()).thenReturn(Collections.emptyList());
-
     when(profilesManager.deleteAvatar(anyString())).thenReturn(CompletableFuture.completedFuture(null));
 
     return new ProfileGrpcService(
         clock,
         accountsManager,
         profilesManager,
-        () -> AsnInfoProvider.EMPTY,
-        dynamicConfigurationManager,
-        badgesConfiguration,
         policyGenerator,
         genericServerSecretParams,
-        profileBadgeConverter,
         rateLimiters
     );
   }
@@ -226,14 +184,12 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
     final byte[] commitment = new ProfileKey(new byte[32]).getCommitment(new ServiceId.Aci(AUTHENTICATED_ACI)).serialize();
     final byte[] validAboutEmoji = new byte[60];
     final byte[] validAbout = new byte[540];
-    final byte[] validPaymentAddress = new byte[582];
     final byte[] validPhoneNumberSharing = new byte[29];
 
     final SetProfileRequest request = SetProfileRequest.newBuilder()
         .setVersion(ByteString.copyFrom(VERSION))
         .setData(ByteString.copyFrom(VALID_DATA))
         .setCommitment(ByteString.copyFrom(commitment)) // after v1 -> v2 migration, commitment can be null if expectedDataHash is present
-        .setPaymentAddress(ByteString.copyFrom(validPaymentAddress))
         .setV1Request(V1_REQUEST.toBuilder()
             .setAvatarChange(AvatarChange.AVATAR_CHANGE_UNCHANGED)
             .setAboutEmoji(ByteString.copyFrom(validAboutEmoji))
@@ -255,8 +211,8 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
     assertThat(profile.data()).isEqualTo(VALID_DATA);
     assertThat(profile.dataHash()).hasSize(32);
     assertThat(profile.commitment()).isEqualTo(commitment);
-    assertThat(profile.paymentAddress()).isEqualTo(validPaymentAddress);
-    assertThat(profile.paymentAddressHash()).hasSize(32);
+    assertThat(profile.paymentAddress()).isNull();
+    assertThat(profile.paymentAddressHash()).isNull();
 
     final VersionedProfileV1 v1Profile = profileV1ArgumentCaptor.getValue();
 
@@ -266,7 +222,7 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
     assertThat(v1Profile.name()).isEqualTo(VALID_NAME);
     assertThat(v1Profile.aboutEmoji()).isEqualTo(validAboutEmoji);
     assertThat(v1Profile.about()).isEqualTo(validAbout);
-    assertThat(v1Profile.paymentAddress()).isEqualTo(validPaymentAddress);
+    assertThat(v1Profile.paymentAddress()).isNull();
     assertThat(v1Profile.phoneNumberSharing()).isEqualTo(validPhoneNumberSharing);
   }
 
@@ -275,7 +231,6 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
     final byte[] commitment = new ProfileKey(new byte[32]).getCommitment(new ServiceId.Aci(AUTHENTICATED_ACI)).serialize();
     final byte[] validAboutEmoji = new byte[60];
     final byte[] validAbout = new byte[540];
-    final byte[] validPaymentAddress = new byte[582];
     final byte[] validPhoneNumberSharing = new byte[29];
 
     doThrow(WriteConflictException.class)
@@ -285,7 +240,6 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
         .setVersion(ByteString.copyFrom(VERSION))
         .setData(ByteString.copyFrom(VALID_DATA))
         .setCommitment(ByteString.copyFrom(commitment)) // after v1 -> v2 migration, commitment can be null if expectedDataHash is present
-        .setPaymentAddress(ByteString.copyFrom(validPaymentAddress))
         .setV1Request(V1_REQUEST.toBuilder()
             .setAvatarChange(AvatarChange.AVATAR_CHANGE_UNCHANGED)
             .setAboutEmoji(ByteString.copyFrom(validAboutEmoji))
@@ -305,7 +259,6 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
     final byte[] commitment = new ProfileKey(new byte[32]).getCommitment(new ServiceId.Aci(AUTHENTICATED_ACI)).serialize();
     final byte[] validAboutEmoji = new byte[60];
     final byte[] validAbout = new byte[540];
-    final byte[] validPaymentAddress = new byte[582];
     final byte[] validPhoneNumberSharing = new byte[29];
 
     when(account.getCurrentProfileVersion()).thenReturn(
@@ -315,7 +268,6 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
         .setVersion(ByteString.copyFrom(VERSION))
         .setData(ByteString.copyFrom(VALID_DATA))
         .setCommitment(ByteString.copyFrom(commitment)) // after v1 -> v2 migration, commitment can be null if expectedDataHash is present
-        .setPaymentAddress(ByteString.copyFrom(validPaymentAddress))
         .setExpectedCurrentVersion(ByteString.copyFrom(VERSION))
         .setV1Request(V1_REQUEST.toBuilder()
             .setAvatarChange(AvatarChange.AVATAR_CHANGE_UNCHANGED)
@@ -337,7 +289,6 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
     final byte[] commitment = new ProfileKey(new byte[32]).getCommitment(new ServiceId.Aci(AUTHENTICATED_ACI)).serialize();
     final byte[] validAboutEmoji = new byte[60];
     final byte[] validAbout = new byte[540];
-    final byte[] validPaymentAddress = new byte[582];
     final byte[] validPhoneNumberSharing = new byte[29];
 
     final byte[] conflictedVersion = TestRandomUtil.nextBytes(32);
@@ -349,7 +300,6 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
         .setVersion(ByteString.copyFrom(VERSION))
         .setData(ByteString.copyFrom(VALID_DATA))
         .setCommitment(ByteString.copyFrom(commitment)) // after v1 -> v2 migration, commitment can be null if expectedDataHash is present
-        .setPaymentAddress(ByteString.copyFrom(validPaymentAddress))
         .setV1Request(V1_REQUEST.toBuilder()
             .setAvatarChange(AvatarChange.AVATAR_CHANGE_UNCHANGED)
             .setAboutEmoji(ByteString.copyFrom(validAboutEmoji))
@@ -504,47 +454,24 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
     );
   }
 
-  @ParameterizedTest
-  @MethodSource
-  void setPaymentAddressDisallowedCountry(@Nullable final byte[] existingPaymentAddress, final byte[] requestPaymentAddress, final boolean expectAllowed) throws InvalidInputException {
-    final Phonenumber.PhoneNumber disallowedPhoneNumber = PhoneNumberUtil.getInstance().getExampleNumber("CU");
+  @Test
+  void setPaymentAddressIsUnavailable() throws InvalidInputException {
     final byte[] commitment = new ProfileKey(new byte[32]).getCommitment(new ServiceId.Aci(AUTHENTICATED_ACI)).serialize();
-
-    when(profile.paymentAddress()).thenReturn(existingPaymentAddress);
 
     final SetProfileRequest request = SetProfileRequest.newBuilder()
         .setVersion(ByteString.copyFrom(VERSION))
         .setData(ByteString.copyFrom(VALID_DATA))
-        .setPaymentAddress(ByteString.copyFrom(requestPaymentAddress))
+        .setPaymentAddress(ByteString.copyFrom(TestRandomUtil.nextBytes(582)))
         .setCommitment(ByteString.copyFrom(commitment))
         .setV1Request(V1_REQUEST)
         .build();
-    final String disallowedCountryCode = String.format("+%d", disallowedPhoneNumber.getCountryCode());
-    when(dynamicPaymentsConfiguration.disallowedPrefixes()).thenReturn(List.of(disallowedCountryCode));
-    when(account.getNumber()).thenReturn(Optional.of(PhoneNumberUtil.getInstance().format(
-        disallowedPhoneNumber, PhoneNumberUtil.PhoneNumberFormat.E164)));
-    when(profilesManager.getV1(any(), anyString())).thenReturn(Optional.of(profile));
 
     final SetProfileResponse response = authenticatedServiceStub().setProfile(request);
-
-    if (expectAllowed) {
-      assertTrue(response.hasResult());
-    } else {
-      assertTrue(response.hasPaymentsForbiddenInRegion());
-    }
-  }
-
-  static Collection<Arguments> setPaymentAddressDisallowedCountry() {
-    return List.of(
-        Arguments.argumentSet("null existing address, zero-length new", null, new byte[0], true),
-        Arguments.argumentSet("null existing address", null, TestRandomUtil.nextBytes(582), false),
-        Arguments.argumentSet("zero-length existing address, zero-length new", new byte[0], new byte[0], true),
-        Arguments.argumentSet("zero-length existing address", new byte[0], TestRandomUtil.nextBytes(582), false),
-        Arguments.argumentSet("valid existing address", TestRandomUtil.nextBytes(582), TestRandomUtil.nextBytes(582), true)
-    );
+    assertTrue(response.hasPaymentsForbiddenInRegion());
   }
 
   @Test
+  @Disabled("Consumer badges are not part of the Security Phone server")
   void setProfileBadges() throws Exception {
 
     final byte[] commitment = new ProfileKey(new byte[32]).getCommitment(new ServiceId.Aci(AUTHENTICATED_ACI)).serialize();
@@ -581,6 +508,7 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
   }
 
   @Test
+  @Disabled("Consumer badges are not part of the Security Phone server")
   void setProfileBadgesEmptyListClearsAll() throws InvalidInputException {
     final byte[] commitment = new ProfileKey(new byte[32]).getCommitment(new ServiceId.Aci(AUTHENTICATED_ACI)).serialize();
 
@@ -616,7 +544,7 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
     final ECKeyPair identityKeyPair = ECKeyPair.generate();
     final IdentityKey identityKey = new IdentityKey(identityKeyPair.getPublicKey());
     final byte[] unidentifiedAccessKey = TestRandomUtil.nextBytes(UnidentifiedAccessUtil.UNIDENTIFIED_ACCESS_KEY_LENGTH);
-    final List<String> badgeIds = List.of("TEST-BADGE");
+    final List<String> badgeIds = List.of();
 
     final byte[] name = TestRandomUtil.nextBytes(81);
     final byte[] emoji = TestRandomUtil.nextBytes(60);
@@ -645,7 +573,6 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
     when(account.getUnidentifiedAccessKey()).thenReturn(Optional.of(unidentifiedAccessKey));
     when(account.getBadges()).thenReturn(Collections.emptyList());
     when(account.hasCapability(any())).thenReturn(false);
-    when(profileBadgeConverter.visibleBadgeIds(anyList())).thenReturn(badgeIds);
 
     final GetProfileResponse response = authenticatedServiceStub().getProfile(request);
 
@@ -683,7 +610,7 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
     final ECKeyPair identityKeyPair = ECKeyPair.generate();
     final IdentityKey identityKey = new IdentityKey(identityKeyPair.getPublicKey());
     final byte[] unidentifiedAccessKey = TestRandomUtil.nextBytes(UnidentifiedAccessUtil.UNIDENTIFIED_ACCESS_KEY_LENGTH);
-    final List<String> badgeIds = List.of("TEST-BADGE");
+    final List<String> badgeIds = List.of();
 
     final byte[] data = TestRandomUtil.nextBytes(128);
     final byte[] paymentAddress = TestRandomUtil.nextBytes(582);
@@ -703,7 +630,6 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
     when(accountsManager.getByServiceIdentifier(new AciServiceIdentifier(targetAci)))
         .thenReturn(Optional.of(account));
 
-    when(profileBadgeConverter.visibleBadgeIds(anyList())).thenReturn(badgeIds);
     when(profilesManager.get(eq(targetAci), aryEq(version))).thenReturn(Optional.of(v2Profile));
     when(profilesManager.getV1(any(), any())).thenReturn(Optional.empty());
 
@@ -737,7 +663,7 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
     final ECKeyPair identityKeyPair = ECKeyPair.generate();
     final IdentityKey identityKey = new IdentityKey(identityKeyPair.getPublicKey());
     final byte[] unidentifiedAccessKey = TestRandomUtil.nextBytes(UnidentifiedAccessUtil.UNIDENTIFIED_ACCESS_KEY_LENGTH);
-    final List<String> badgeIds = List.of("TEST-BADGE");
+    final List<String> badgeIds = List.of();
 
     final byte[] data = TestRandomUtil.nextBytes(128);
     final byte[] paymentAddress = TestRandomUtil.nextBytes(582);
@@ -754,7 +680,6 @@ public class ProfileGrpcServiceTest extends SimpleBaseGrpcTest<ProfileGrpcServic
     when(account.isUnrestrictedUnidentifiedAccess()).thenReturn(true);
     when(account.getUnidentifiedAccessKey()).thenReturn(Optional.of(unidentifiedAccessKey));
     when(account.getBadges()).thenReturn(Collections.emptyList());
-    when(profileBadgeConverter.visibleBadgeIds(anyList())).thenReturn(badgeIds);
 
     when(account.getCurrentProfileVersion()).thenReturn(Optional.of(version));
     when(profilesManager.get(targetAci, version)).thenReturn(Optional.of(v2Profile));

@@ -55,14 +55,11 @@ public class DynamoDbTables {
   private final Table clientReleases;
   private final Table deletedAccounts;
   private final Table deletedAccountsLock;
-  private final TableWithExpiration donationPermits;
-  private final IssuedReceiptsTableConfiguration issuedReceipts;
   private final Table ecKeys;
   private final Table ecSignedPreKeys;
   private final Table kemLastResortKeys;
   private final Table pagedKemKeys;
   private final TableWithExpiration messages;
-  private final TableWithExpiration onetimeDonations;
   private final Table phoneNumberIdentifiers;
   private final Table profileAvatars;
   private final Table profiles;
@@ -74,7 +71,6 @@ public class DynamoDbTables {
   private final Table reportMessage;
   private final Table sandboxAccounts;
   private final TableWithExpiration scheduledJobs;
-  private final Table subscriptions;
   private final Table verificationSessions;
 
   public DynamoDbTables(
@@ -86,14 +82,11 @@ public class DynamoDbTables {
       @JsonProperty("clientReleases") final Table clientReleases,
       @JsonProperty("deletedAccounts") final Table deletedAccounts,
       @JsonProperty("deletedAccountsLock") final Table deletedAccountsLock,
-      @JsonProperty("donationPermits") final TableWithExpiration donationPermits,
-      @JsonProperty("issuedReceipts") final IssuedReceiptsTableConfiguration issuedReceipts,
       @JsonProperty("ecKeys") final Table ecKeys,
       @JsonProperty("ecSignedPreKeys") final Table ecSignedPreKeys,
       @JsonProperty("pqLastResortKeys") final Table kemLastResortKeys,
       @JsonProperty("pagedPqKeys") final Table pagedKemKeys,
       @JsonProperty("messages") final TableWithExpiration messages,
-      @JsonProperty("onetimeDonations") final TableWithExpiration onetimeDonations,
       @JsonProperty("phoneNumberIdentifiers") final Table phoneNumberIdentifiers,
       @JsonProperty("profileAvatars") final Table profileAvatars,
       @JsonProperty("profiles") final Table profiles,
@@ -105,7 +98,6 @@ public class DynamoDbTables {
       @JsonProperty("reportMessage") final Table reportMessage,
       @JsonProperty("sandboxAccounts") final Table sandboxAccounts,
       @JsonProperty("scheduledJobs") final TableWithExpiration scheduledJobs,
-      @JsonProperty("subscriptions") final Table subscriptions,
       @JsonProperty("verificationSessions") final Table verificationSessions) {
 
     this.accounts = accounts;
@@ -116,14 +108,11 @@ public class DynamoDbTables {
     this.clientReleases = clientReleases;
     this.deletedAccounts = deletedAccounts;
     this.deletedAccountsLock = deletedAccountsLock;
-    this.donationPermits = donationPermits;
-    this.issuedReceipts = issuedReceipts;
     this.ecKeys = ecKeys;
     this.ecSignedPreKeys = ecSignedPreKeys;
     this.pagedKemKeys = pagedKemKeys;
     this.kemLastResortKeys = kemLastResortKeys;
     this.messages = messages;
-    this.onetimeDonations = onetimeDonations;
     this.phoneNumberIdentifiers = phoneNumberIdentifiers;
     this.profileAvatars = profileAvatars;
     this.profiles = profiles;
@@ -135,7 +124,6 @@ public class DynamoDbTables {
     this.reportMessage = reportMessage;
     this.sandboxAccounts = sandboxAccounts;
     this.scheduledJobs = scheduledJobs;
-    this.subscriptions = subscriptions;
     this.verificationSessions = verificationSessions;
   }
 
@@ -189,18 +177,6 @@ public class DynamoDbTables {
 
   @NotNull
   @Valid
-  public TableWithExpiration getDonationPermits() {
-    return donationPermits;
-  }
-
-  @NotNull
-  @Valid
-  public IssuedReceiptsTableConfiguration getIssuedReceipts() {
-    return issuedReceipts;
-  }
-
-  @NotNull
-  @Valid
   public Table getEcKeys() {
     return ecKeys;
   }
@@ -227,12 +203,6 @@ public class DynamoDbTables {
   @Valid
   public TableWithExpiration getMessages() {
     return messages;
-  }
-
-  @NotNull
-  @Valid
-  public TableWithExpiration getOnetimeDonations() {
-    return onetimeDonations;
   }
 
   @NotNull
@@ -299,12 +269,6 @@ public class DynamoDbTables {
   @Valid
   public TableWithExpiration getScheduledJobs() {
     return scheduledJobs;
-  }
-
-  @NotNull
-  @Valid
-  public Table getSubscriptions() {
-    return subscriptions;
   }
 
   @NotNull
