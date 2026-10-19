@@ -5,6 +5,7 @@
 package org.whispersystems.textsecuregcm.storage;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -24,6 +25,7 @@ import org.whispersystems.textsecuregcm.util.ByteArrayAdapter;
 import org.whispersystems.textsecuregcm.util.DeviceCapabilityAdapter;
 import org.whispersystems.textsecuregcm.util.DeviceNameByteArrayAdapter;
 
+@JsonIgnoreProperties("userAgent")
 public class Device {
 
   public static final byte PRIMARY_ID = 1;
@@ -79,9 +81,6 @@ public class Device {
 
   @JsonProperty
   private long created;
-
-  @JsonProperty
-  private String userAgent;
 
   @JsonProperty
   @JsonSerialize(using = DeviceCapabilityAdapter.Serializer.class)
@@ -252,11 +251,4 @@ public class Device {
     return pushTimestamp;
   }
 
-  public void setUserAgent(String userAgent) {
-    this.userAgent = userAgent;
-  }
-
-  public String getUserAgent() {
-    return this.userAgent;
-  }
 }

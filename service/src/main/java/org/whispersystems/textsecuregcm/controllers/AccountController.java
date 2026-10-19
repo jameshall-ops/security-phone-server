@@ -17,7 +17,6 @@ import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HEAD;
-import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
@@ -64,9 +63,7 @@ import org.whispersystems.textsecuregcm.storage.Device;
 import org.whispersystems.textsecuregcm.storage.PhoneNumberRecoveryPasswordsManager;
 import org.whispersystems.textsecuregcm.storage.UsernameHashNotAvailableException;
 import org.whispersystems.textsecuregcm.storage.UsernameReservationNotFoundException;
-import org.whispersystems.textsecuregcm.util.HeaderUtils;
 import org.whispersystems.textsecuregcm.util.UsernameHashZkProofVerifier;
-import org.whispersystems.textsecuregcm.util.Util;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
 
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -122,7 +119,6 @@ public class AccountController {
     accounts.updateDevice(auth.accountIdentifier(), auth.deviceId(), d -> {
       d.setGcmId(null);
       d.setFetchesMessages(false);
-      d.setUserAgent("OWA");
     });
   }
 
@@ -148,7 +144,6 @@ public class AccountController {
     accounts.updateDevice(auth.accountIdentifier(), auth.deviceId(), d -> {
       d.setApnId(null);
       d.setFetchesMessages(false);
-      d.setUserAgent(d.isPrimary() ? "OWI" : "OWP");
     });
   }
 
@@ -216,7 +211,6 @@ public class AccountController {
   @Produces(MediaType.APPLICATION_JSON)
   public void setAccountAttributes(
       @Auth AuthenticatedDevice auth,
-      @HeaderParam(HeaderUtils.X_SIGNAL_AGENT) String signalAgent,
       @NotNull @Valid AccountAttributes attributes) {
 
     final Account account = accounts.getByAccountIdentifier(auth.accountIdentifier())
@@ -232,11 +226,7 @@ public class AccountController {
       a.getDevice(auth.deviceId()).ifPresent(d -> {
         d.setFetchesMessages(attributes.getFetchesMessages());
         d.setName(attributes.getName());
-        d.setLastSeen(Util.todayInMillis());
         d.setCapabilities(attributes.getCapabilities());
-        if (StringUtils.isNotBlank(signalAgent)) {
-          d.setUserAgent(signalAgent);
-        }
       });
 
       if (StringUtils.isNotEmpty(attributes.getRegistrationLock()) && a.getNumber().isEmpty()) {

@@ -15,15 +15,14 @@ import io.micrometer.core.instrument.Tags;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.commons.lang3.StringUtils;
 import org.whispersystems.textsecuregcm.storage.Account;
 import org.whispersystems.textsecuregcm.storage.AccountsManager;
 import org.whispersystems.textsecuregcm.storage.Device;
+import org.whispersystems.textsecuregcm.util.LastSeenPrivacy;
 import org.whispersystems.textsecuregcm.util.Pair;
-import org.whispersystems.textsecuregcm.util.Util;
 
 public class AccountAuthenticator implements Authenticator<BasicCredentials, AuthenticatedDevice> {
 
@@ -124,26 +123,22 @@ public class AccountAuthenticator implements Authenticator<BasicCredentials, Aut
 
   @VisibleForTesting
   public Account updateLastSeen(Account account, Device device) {
-    // compute a non-negative integer between 0 and 86400.
-    long n = Util.ensureNonNegativeLong(account.getAccountIdentifier().getLeastSignificantBits());
-    final long lastSeenOffsetSeconds = n % ChronoUnit.DAYS.getDuration().toSeconds();
+    final long weeklyBucketStart = weeklyLastSeenBucketStartMillis(account.getAccountIdentifier(), clock);
 
-    // produce a truncated timestamp which is either today at UTC midnight
-    // or yesterday at UTC midnight, based on per-user randomized offset used.
-    final long todayInMillisWithOffset = Util.todayInMillisGivenOffsetFromNow(clock,
-        Duration.ofSeconds(lastSeenOffsetSeconds).negated());
-
-    // only update the device's last seen time when it falls behind the truncated timestamp.
-    // this ensures a few things:
-    //   (1) each account will only update last-seen at most once per day
-    //   (2) these updates will occur throughout the day rather than all occurring at UTC midnight.
-    if (device.getLastSeen() < todayInMillisWithOffset) {
+    // Persist only the start of the current privacy bucket. The stable account-specific offset spreads writes
+    // throughout the week without retaining the day or time of the authenticating request.
+    if (device.getLastSeen() < weeklyBucketStart) {
       Metrics.summary(DAYS_SINCE_LAST_SEEN_DISTRIBUTION_NAME, IS_PRIMARY_DEVICE_TAG, String.valueOf(device.isPrimary()))
-          .record(Duration.ofMillis(todayInMillisWithOffset - device.getLastSeen()).toDays());
+          .record(Duration.ofMillis(weeklyBucketStart - device.getLastSeen()).toDays());
 
-      return accountsManager.updateDeviceLastSeen(account.getAccountIdentifier(), device, Util.todayInMillis(clock));
+      return accountsManager.updateDeviceLastSeen(account.getAccountIdentifier(), device, weeklyBucketStart);
     }
 
     return account;
+  }
+
+  @VisibleForTesting
+  static long weeklyLastSeenBucketStartMillis(final UUID accountIdentifier, final Clock clock) {
+    return LastSeenPrivacy.bucketStartMillis(accountIdentifier, clock);
   }
 }

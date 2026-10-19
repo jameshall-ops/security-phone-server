@@ -10,14 +10,15 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.dropwizard.auth.basic.BasicCredentials;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -39,17 +40,9 @@ import org.whispersystems.textsecuregcm.util.TestClock;
 
 class AccountAuthenticatorTest {
 
-  private final long today = 1590451200000L;
-  private final long yesterday = today - 86_400_000L;
-  private final long oldTime = yesterday - 86_400_000L;
-  private final long currentTime = today + 68_000_000L;
-
   private AccountsManager          accountsManager;
   private AccountAuthenticator accountAuthenticator;
   private TestClock                clock;
-  private Account                  acct1;
-  private Account                  acct2;
-  private Account                  oldAccount;
 
   @BeforeEach
   void setup() {
@@ -57,15 +50,7 @@ class AccountAuthenticatorTest {
     clock = TestClock.now();
     accountAuthenticator = new AccountAuthenticator(accountsManager, clock);
 
-    // We use static UUIDs here because the UUID affects the "date last seen" offset
-    acct1 = AccountsHelper.generateTestAccount("+14088675309", UUID.fromString("c139cb3e-f70c-4460-b221-815e8bdf778f"), UUID.randomUUID(), List.of(generateTestDevice(yesterday)), null);
-    acct2 = AccountsHelper.generateTestAccount("+14088675310", UUID.fromString("30018a41-2764-4bc7-a935-775dfef84ad1"), UUID.randomUUID(), List.of(generateTestDevice(yesterday)), null);
-    oldAccount = AccountsHelper.generateTestAccount("+14088675311", UUID.fromString("adfce52b-9299-4c25-9c51-412fb420c6a6"), UUID.randomUUID(), List.of(generateTestDevice(oldTime)), null);
-
     AccountsHelper.setupMockUpdate(accountsManager);
-    AccountsHelper.setupMockGet(accountsManager, acct1);
-    AccountsHelper.setupMockGet(accountsManager, acct2);
-    AccountsHelper.setupMockGet(accountsManager, oldAccount);
   }
 
   private static Device generateTestDevice(final long lastSeen) {
@@ -77,67 +62,42 @@ class AccountAuthenticatorTest {
   }
 
   @Test
-  void testUpdateLastSeenMiddleOfDay() {
-    clock.pin(Instant.ofEpochMilli(currentTime));
+  void testLastSeenChangesAtMostOncePerSevenDays() {
+    final UUID accountIdentifier = new UUID(0, 0);
+    final long weekStart = Instant.parse("2026-10-15T00:00:00Z").toEpochMilli();
+    final Device device = generateTestDevice(weekStart);
+    final Account account = AccountsHelper.generateTestAccount(
+        "+14088675312", accountIdentifier, UUID.randomUUID(), List.of(device), null);
+    AccountsHelper.setupMockGet(accountsManager, account);
 
-    final Device device1 = acct1.getDevices().stream().findFirst().orElseThrow();
-    final Device device2 = acct2.getDevices().stream().findFirst().orElseThrow();
+    clock.pin(Instant.ofEpochMilli(weekStart).plus(Duration.ofDays(1)));
+    accountAuthenticator.updateLastSeen(account, device);
 
-    accountAuthenticator.updateLastSeen(acct1, device1);
-    accountAuthenticator.updateLastSeen(acct2, device2);
+    clock.pin(Instant.ofEpochMilli(weekStart).plus(Duration.ofDays(7)).minusMillis(1));
+    accountAuthenticator.updateLastSeen(account, device);
 
-    verify(accountsManager, never()).updateDeviceLastSeen(eq(acct1.getAccountIdentifier()), any(), anyLong());
-    verify(accountsManager).updateDeviceLastSeen(eq(acct2.getAccountIdentifier()), eq(device2), anyLong());
+    clock.pin(Instant.ofEpochMilli(weekStart).plus(Duration.ofDays(7)));
+    accountAuthenticator.updateLastSeen(account, device);
 
-    assertThat(device1.getLastSeen()).isEqualTo(yesterday);
-    assertThat(device2.getLastSeen()).isEqualTo(today);
+    verify(accountsManager, times(1)).updateDeviceLastSeen(
+        eq(accountIdentifier), eq(device), eq(weekStart + Duration.ofDays(7).toMillis()));
+    assertThat(device.getLastSeen()).isEqualTo(weekStart + Duration.ofDays(7).toMillis());
   }
 
   @Test
-  void testUpdateLastSeenStartOfDay() {
-    clock.pin(Instant.ofEpochMilli(today));
+  void testLastSeenWeeklyOffsetIsStableAndAccountSpecific() {
+    clock.pin(Instant.parse("2026-10-18T12:00:00Z"));
+    final UUID firstAccount = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    final UUID secondAccount = UUID.fromString("00000000-0000-0000-0000-000000000002");
 
-    final Device device1 = acct1.getDevices().stream().findFirst().orElseThrow();
-    final Device device2 = acct2.getDevices().stream().findFirst().orElseThrow();
+    final long firstBucket = AccountAuthenticator.weeklyLastSeenBucketStartMillis(firstAccount, clock);
+    final long secondBucket = AccountAuthenticator.weeklyLastSeenBucketStartMillis(secondAccount, clock);
 
-    accountAuthenticator.updateLastSeen(acct1, device1);
-    accountAuthenticator.updateLastSeen(acct2, device2);
+    assertThat(secondBucket - firstBucket).isEqualTo(1_000L);
 
-    verify(accountsManager, never()).updateDeviceLastSeen(eq(acct1.getAccountIdentifier()), any(), anyLong());
-    verify(accountsManager, never()).updateDeviceLastSeen(eq(acct2.getAccountIdentifier()), any(), anyLong());
-
-    assertThat(device1.getLastSeen()).isEqualTo(yesterday);
-    assertThat(device2.getLastSeen()).isEqualTo(yesterday);
-  }
-
-  @Test
-  void testUpdateLastSeenEndOfDay() {
-    clock.pin(Instant.ofEpochMilli(today + 86_400_000L - 1));
-
-    final Device device1 = acct1.getDevices().stream().findFirst().orElseThrow();
-    final Device device2 = acct2.getDevices().stream().findFirst().orElseThrow();
-
-    accountAuthenticator.updateLastSeen(acct1, device1);
-    accountAuthenticator.updateLastSeen(acct2, device2);
-
-    verify(accountsManager).updateDeviceLastSeen(eq(acct1.getAccountIdentifier()), eq(device1), anyLong());
-    verify(accountsManager).updateDeviceLastSeen(eq(acct2.getAccountIdentifier()), eq(device2), anyLong());
-
-    assertThat(device1.getLastSeen()).isEqualTo(today);
-    assertThat(device2.getLastSeen()).isEqualTo(today);
-  }
-
-  @Test
-  void testNeverWriteYesterday() {
-    clock.pin(Instant.ofEpochMilli(today));
-
-    final Device device = oldAccount.getDevices().stream().findFirst().orElseThrow();
-
-    accountAuthenticator.updateLastSeen(oldAccount, device);
-
-    verify(accountsManager).updateDeviceLastSeen(eq(oldAccount.getAccountIdentifier()), eq(device), anyLong());
-
-    assertThat(device.getLastSeen()).isEqualTo(today);
+    clock.pin(clock.instant().plus(Duration.ofDays(7)));
+    assertThat(AccountAuthenticator.weeklyLastSeenBucketStartMillis(firstAccount, clock) - firstBucket)
+        .isEqualTo(Duration.ofDays(7).toMillis());
   }
 
   @Test

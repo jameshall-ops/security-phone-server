@@ -405,8 +405,7 @@ class DevicesGrpcServiceTest extends SimpleBaseGrpcTest<DevicesGrpcService, Devi
   @MethodSource
   void clearPushToken(final byte deviceId,
       @Nullable final String apnsToken,
-      @Nullable final String fcmToken,
-      @Nullable final String expectedUserAgent) {
+      @Nullable final String fcmToken) {
 
     mockAuthenticationInterceptor().setAuthenticatedDevice(AUTHENTICATED_ACI, deviceId);
 
@@ -422,22 +421,16 @@ class DevicesGrpcServiceTest extends SimpleBaseGrpcTest<DevicesGrpcService, Devi
     verify(device).setApnId(null);
     verify(device).setGcmId(null);
     verify(device).setFetchesMessages(true);
-
-    if (expectedUserAgent != null) {
-      verify(device).setUserAgent(expectedUserAgent);
-    } else {
-      verify(device, never()).setUserAgent(any());
-    }
   }
 
   private static Stream<Arguments> clearPushToken() {
     return Stream.of(
-        Arguments.of(Device.PRIMARY_ID, "apns-token", null, "OWI"),
-        Arguments.of(Device.PRIMARY_ID, null, "fcm-token", "OWA"),
-        Arguments.of(Device.PRIMARY_ID, null, null, null),
-        Arguments.of((byte) (Device.PRIMARY_ID + 1), "apns-token", null, "OWP"),
-        Arguments.of((byte) (Device.PRIMARY_ID + 1), null, "fcm-token", "OWA"),
-        Arguments.of((byte) (Device.PRIMARY_ID + 1), null, null, null)
+        Arguments.of(Device.PRIMARY_ID, "apns-token", null),
+        Arguments.of(Device.PRIMARY_ID, null, "fcm-token"),
+        Arguments.of(Device.PRIMARY_ID, null, null),
+        Arguments.of((byte) (Device.PRIMARY_ID + 1), "apns-token", null),
+        Arguments.of((byte) (Device.PRIMARY_ID + 1), null, "fcm-token"),
+        Arguments.of((byte) (Device.PRIMARY_ID + 1), null, null)
     );
   }
 

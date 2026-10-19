@@ -156,12 +156,6 @@ public class DevicesGrpcService extends SimpleDevicesGrpc.DevicesImplBase {
     final AuthenticatedDevice authenticatedDevice = AuthenticationUtil.requireAuthenticatedDevice();
 
     accountsManager.updateDevice(authenticatedDevice.accountIdentifier(), authenticatedDevice.deviceId(), device -> {
-      if (StringUtils.isNotBlank(device.getApnId())) {
-        device.setUserAgent(device.isPrimary() ? "OWI" : "OWP");
-      } else if (StringUtils.isNotBlank(device.getGcmId())) {
-        device.setUserAgent("OWA");
-      }
-
       device.setApnId(null);
       device.setGcmId(null);
       device.setFetchesMessages(true);

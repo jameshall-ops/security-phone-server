@@ -1094,7 +1094,6 @@ class AccountsManagerTest {
 
     final Device reclaimedPrimaryDevice = reclaimedAccount.getPrimaryDevice();
     assertArrayEquals(primaryDeviceSpec.deviceNameCiphertext(), reclaimedPrimaryDevice.getName());
-    assertEquals(primaryDeviceSpec.signalAgent(), reclaimedPrimaryDevice.getUserAgent());
     assertEquals(aciRegistrationId, reclaimedPrimaryDevice.getAccountRegistrationId());
     assertEquals(hasPhoneNumber ? Optional.of(pniRegistrationId) : Optional.empty(), reclaimedPrimaryDevice.getPhoneNumberIdentityRegistrationId());
     assertTrue(reclaimedPrimaryDevice.getFetchesMessages());
@@ -1333,7 +1332,6 @@ class AccountsManagerTest {
 
     assertEquals(deviceNameCiphertext, device.getName());
     assertTrue(device.getAuthTokenHash().verify(password));
-    assertEquals(signalAgent, device.getUserAgent());
     assertEquals(Collections.emptySet(), device.getCapabilities());
     assertEquals(aciRegistrationId, device.getAccountRegistrationId());
     assertEquals(accountHasPhoneNumber ? Optional.of(pniRegistrationId) : Optional.empty(), device.getPhoneNumberIdentityRegistrationId());

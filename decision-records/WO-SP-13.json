@@ -1,0 +1,24 @@
+{
+  "work_order": "WO-SP-13",
+  "branch": "wo-sp-13-metadata-diet",
+  "base_commit": "98f1fc5228e54bb663b8ca577f41dc58d4965e95",
+  "implementation_commit": "edc9933df1b38297df2692881743d06959094796",
+  "test_gate_command": "./mvnw -pl service -am test",
+  "hosted_test_gate_command": "./mvnw -e -B -Pprepull-testcontainers-images clean verify -DfoundationDb.serviceContainerNamePrefix=foundationdb",
+  "test_first_red_run": "https://github.com/jameshall-ops/security-phone-server/actions/runs/39189271929",
+  "test_first_red_result": "6157 tests; 1 expected acceptance-test failure; 0 errors; 12 skipped; legacy userAgent was still serialized before implementation",
+  "pull_request_service_ci_run": "https://github.com/jameshall-ops/security-phone-server/actions/runs/39191079517",
+  "service_ci_log_hash": "982bce9f500704f319f890476f5091c5c255b384f32d51877b72623ae625f712",
+  "service_ci_result": "6154 tests; 0 failures; 0 errors; 12 skipped; complete hosted clean verify passed",
+  "boundary_check_command": "sh tests/boundary-check.test.sh",
+  "boundary_check_run": "https://github.com/jameshall-ops/security-phone-server/actions/runs/39191079445",
+  "boundary_check_run_hash": "43076ea7a0f6a855a3dd7c9d665c75cdcc17c1aac333f33b69994064914be8b4",
+  "migration": "Legacy Device.userAgent is ignored during deserialization and omitted on the next account write; new and reclaimed devices receive only the current account-offset seven-day lastSeen bucket.",
+  "reviewer": "Pending: Privacy Owner",
+  "human_gate_decision": "deferred",
+  "human_gate_evidence": "docs/security-phone/ACCOUNT-RECORD.md is complete and awaits the Privacy Owner signature required by WO-SP-13.",
+  "open_items": [
+    "Privacy Owner signs docs/security-phone/ACCOUNT-RECORD.md",
+    "Merge remains prohibited until the human gate is approved"
+  ]
+}

@@ -15,7 +15,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import javax.annotation.Nullable;
 import org.whispersystems.textsecuregcm.storage.AccountBadge;
 
 public record AccountDataReportResponse(UUID reportId,
@@ -81,12 +80,10 @@ public record AccountDataReportResponse(UUID reportId,
                 - ID: %s
                   Created: %s
                   Last seen: %s
-                  User-agent: %s
                 """,
             deviceDataReport.id(),
             deviceDataReport.created().truncatedTo(ChronoUnit.SECONDS),
-            deviceDataReport.lastSeen().truncatedTo(ChronoUnit.SECONDS),
-            deviceDataReport.userAgent())));
+            deviceDataReport.lastSeen().truncatedTo(ChronoUnit.SECONDS))));
 
     return builder.toString();
   }
@@ -107,8 +104,7 @@ public record AccountDataReportResponse(UUID reportId,
                                  @JsonFormat(pattern = DATE_FORMAT, timezone = UTC)
                                  Instant lastSeen,
                                  @JsonFormat(pattern = DATE_FORMAT, timezone = UTC)
-                                 Instant created,
-                                 @Nullable String userAgent) {
+                                 Instant created) {
 
 
   }

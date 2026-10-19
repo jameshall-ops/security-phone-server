@@ -2649,7 +2649,6 @@ class AccountsTest {
       assertThat(resultDevice.getGcmId()).isEqualTo(expectingDevice.getGcmId());
       assertThat(resultDevice.getLastSeen()).isEqualTo(expectingDevice.getLastSeen());
       assertThat(resultDevice.getFetchesMessages()).isEqualTo(expectingDevice.getFetchesMessages());
-      assertThat(resultDevice.getUserAgent()).isEqualTo(expectingDevice.getUserAgent());
       assertThat(resultDevice.getName()).isEqualTo(expectingDevice.getName());
       assertThat(resultDevice.getCreated()).isEqualTo(expectingDevice.getCreated());
       assertThat(resultDevice.getPhoneNumberIdentityRegistrationId()).isEqualTo(expectingDevice.getPhoneNumberIdentityRegistrationId());

@@ -24,7 +24,6 @@ public class DevicesHelper {
     final Device device = new Device();
     device.setId(deviceId);
     device.setLastSeen(lastSeen);
-    device.setUserAgent("OWT");
     device.setRegistrationId(registrationId);
 
     return device;

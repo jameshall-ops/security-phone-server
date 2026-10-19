@@ -6,6 +6,7 @@
 package org.whispersystems.textsecuregcm.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.time.Duration;
@@ -65,6 +66,18 @@ class DeviceTest {
       assertNotNull(device.getCapabilities(),
           "Device deserialization should populate null capabilities with an empty set");
     }
+  }
+
+  @Test
+  void legacyUserAgentIsDiscardedAndNeverSerialized() throws JsonProcessingException {
+    final Device device = SystemMapper.jsonMapper().readValue("""
+        {
+          "id": 1,
+          "userAgent": "Signal-Android/9.9.9"
+        }
+        """, Device.class);
+
+    assertFalse(SystemMapper.jsonMapper().valueToTree(device).has("userAgent"));
   }
 
 }
