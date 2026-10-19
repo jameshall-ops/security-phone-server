@@ -19,7 +19,19 @@ message AppendAuditRecordRequest {
   string subject_id = 4;
   string tier = 5;
   google.protobuf.Timestamp occurred_at = 6;
+
+  // SHA-256 digest of the canonical evidence bytes returned by evidence_reference.
   bytes payload_digest = 7;
+
+  // Governed, access-controlled reference to encrypted evidence. The reference is an identifier, not a bearer URL,
+  // and must not contain credentials or secret query parameters.
+  string evidence_reference = 8;
+
+  // IANA media type of the canonical evidence bytes, for example application/json.
+  string evidence_media_type = 9;
+
+  // Size of the canonical evidence bytes after governed retrieval and decryption.
+  uint64 evidence_size_bytes = 10;
 }
 
 message AppendAuditRecordResponse {
