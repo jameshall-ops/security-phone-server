@@ -17,7 +17,7 @@
     <firebase-admin.version>9.11.0</firebase-admin.version>
     <libphonenumber-geocoder.version>3.41</libphonenumber-geocoder.version>
     <google-androidpublisher.version>v3-rev20250904-2.0.0</google-androidpublisher.version>
-    <java-jwt.version>4.6.1</java-jwt.version>
+    <java-jwt.version>4.6.2</java-jwt.version>
     <java-uuid-generator.version>5.2.0</java-uuid-generator.version>
     <!-- *all* opentelemetry-logback-appender versions are "alpha" despite the advanced version number -->
     <opentelemetry-logback-appender-1.0.version>${opentelemetry-instrumentation.version}-alpha</opentelemetry-logback-appender-1.0.version>
